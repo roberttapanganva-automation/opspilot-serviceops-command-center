@@ -1,0 +1,2 @@
+-- Intentionally empty.
+-- Do not add production seed data. Local demo seed data can be added later only when explicitly requested.
