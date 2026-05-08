@@ -1,0 +1,442 @@
+import { createClient } from "@/lib/supabase/server";
+import { getActiveWorkspace } from "@/lib/tenant/getActiveWorkspace";
+import type {
+  DashboardActivityItem,
+  DashboardAgendaItem,
+  DashboardOverview,
+  DashboardPipelineStageSummary,
+  DashboardTaskItem,
+} from "@/types/domain";
+
+type LeadRow = {
+  created_at: string;
+  id: string;
+  stage_id: string | null;
+};
+
+type JobRow = {
+  actual_value: number | string | null;
+  created_at: string;
+  estimated_value: number | string;
+  id: string;
+  location: string | null;
+  scheduled_end: string | null;
+  scheduled_start: string | null;
+  stage_id: string | null;
+  status: "draft" | "scheduled" | "in_progress" | "completed" | "cancelled";
+  title: string;
+};
+
+type TaskRow = DashboardTaskItem;
+
+type AppointmentRow = {
+  ends_at: string | null;
+  id: string;
+  location: string | null;
+  starts_at: string;
+  status: "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
+  title: string;
+};
+
+type PipelineStageRow = {
+  color: string;
+  entity_type: "lead" | "job";
+  id: string;
+  name: string;
+  order_index: number;
+};
+
+type AutomationLogRow = {
+  automation_type: string;
+  created_at: string;
+  error_message: string | null;
+  id: string;
+  message: string;
+  status: "success" | "failed" | "pending" | "skipped" | "retrying";
+};
+
+type AuditLogRow = {
+  action: string;
+  created_at: string;
+  entity_type: string;
+  id: string;
+};
+
+function startOfLocalDay(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
+
+function getDateRanges(now = new Date()) {
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const startOfToday = startOfLocalDay(now);
+  const startOfTomorrow = new Date(startOfToday);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+
+  return {
+    now,
+    startOfMonth,
+    startOfNextMonth,
+    startOfToday,
+    startOfTomorrow,
+  };
+}
+
+function isWithinRange(value: string | null, start: Date, end: Date) {
+  if (!value) {
+    return false;
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  return timestamp >= start.getTime() && timestamp < end.getTime();
+}
+
+function toNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  return typeof value === "number" ? value : Number(value);
+}
+
+function isTaskOverdue(task: TaskRow, now: Date) {
+  if (!task.due_at || task.status === "done" || task.status === "cancelled") {
+    return false;
+  }
+
+  return new Date(task.due_at).getTime() < now.getTime();
+}
+
+function dateForTaskSort(task: TaskRow) {
+  return new Date(task.due_at ?? task.created_at).getTime();
+}
+
+function buildPipelineStages({
+  entityType,
+  records,
+  stages,
+}: {
+  entityType: "lead" | "job";
+  records: Array<{ stage_id: string | null }>;
+  stages: PipelineStageRow[];
+}): DashboardPipelineStageSummary[] {
+  const counts = new Map<string, number>();
+
+  for (const record of records) {
+    if (!record.stage_id) {
+      continue;
+    }
+
+    counts.set(record.stage_id, (counts.get(record.stage_id) ?? 0) + 1);
+  }
+
+  return stages
+    .filter((stage) => stage.entity_type === entityType)
+    .sort((first, second) => first.order_index - second.order_index)
+    .map((stage) => ({
+      color: stage.color,
+      count: counts.get(stage.id) ?? 0,
+      entity_type: entityType,
+      id: stage.id,
+      name: stage.name,
+      order_index: stage.order_index,
+    }));
+}
+
+function buildAgendaItems({
+  appointments,
+  jobs,
+}: {
+  appointments: AppointmentRow[];
+  jobs: JobRow[];
+}): DashboardAgendaItem[] {
+  const appointmentItems = appointments.map((appointment) => ({
+    ends_at: appointment.ends_at,
+    id: appointment.id,
+    location: appointment.location,
+    starts_at: appointment.starts_at,
+    status: appointment.status,
+    title: appointment.title,
+    type: "appointment" as const,
+  }));
+
+  const jobItems = jobs
+    .filter((job) => job.scheduled_start)
+    .map((job) => ({
+      ends_at: job.scheduled_end,
+      id: job.id,
+      location: job.location,
+      starts_at: job.scheduled_start as string,
+      status: job.status,
+      title: job.title,
+      type: "job" as const,
+    }));
+
+  return [...appointmentItems, ...jobItems].sort(
+    (first, second) =>
+      new Date(first.starts_at).getTime() - new Date(second.starts_at).getTime(),
+  );
+}
+
+function buildActivityItems({
+  auditLogs,
+  automationLogs,
+}: {
+  auditLogs: AuditLogRow[];
+  automationLogs: AutomationLogRow[];
+}): DashboardActivityItem[] {
+  const automationItems = automationLogs.map((log) => ({
+    created_at: log.created_at,
+    id: log.id,
+    message: log.error_message ?? log.message,
+    status: log.status,
+    title: log.automation_type,
+    type: "automation" as const,
+  }));
+
+  const auditItems = auditLogs.map((log) => ({
+    created_at: log.created_at,
+    id: log.id,
+    message: log.entity_type,
+    status: null,
+    title: log.action,
+    type: "audit" as const,
+  }));
+
+  return [...automationItems, ...auditItems]
+    .sort(
+      (first, second) =>
+        new Date(second.created_at).getTime() -
+        new Date(first.created_at).getTime(),
+    )
+    .slice(0, 8);
+}
+
+function createEmptyDashboardOverview(
+  workspace: DashboardOverview["workspace"],
+): DashboardOverview {
+  return {
+    agendaItems: [],
+    kpis: {
+      currencyCode: workspace.currencyCode,
+      estimatedRevenueThisMonth: 0,
+      jobsBookedThisMonth: 0,
+      newLeadsThisMonth: 0,
+      overdueTasks: 0,
+    },
+    pipeline: {
+      jobStages: [],
+      leadStages: [],
+    },
+    recentActivity: [],
+    revenue: {
+      completedActualRevenue: 0,
+      currencyCode: workspace.currencyCode,
+      estimatedRevenueAllOpenJobs: 0,
+      estimatedRevenueScheduledJobs: 0,
+      estimatedRevenueThisMonth: 0,
+      jobCount: 0,
+    },
+    taskSummary: {
+      completedTasks: 0,
+      overdueTasks: 0,
+      pendingTasks: 0,
+      recentTasks: [],
+      totalTasks: 0,
+    },
+    workspace,
+  };
+}
+
+export async function getDashboardOverview(): Promise<DashboardOverview> {
+  const activeWorkspace = await getActiveWorkspace();
+
+  if (activeWorkspace.status !== "ready") {
+    return createEmptyDashboardOverview({
+      currencyCode: "USD",
+      id: "",
+      name: "",
+    });
+  }
+
+  const supabase = await createClient();
+  const workspace = {
+    currencyCode: activeWorkspace.context.workspace.currency_code ?? "USD",
+    id: activeWorkspace.context.workspace.id,
+    name: activeWorkspace.context.workspace.name,
+  };
+  const workspaceId = workspace.id;
+  const {
+    now,
+    startOfMonth,
+    startOfNextMonth,
+    startOfToday,
+    startOfTomorrow,
+  } = getDateRanges();
+
+  const [
+    leadsResult,
+    jobsResult,
+    tasksResult,
+    appointmentsResult,
+    pipelineStagesResult,
+    automationLogsResult,
+    auditLogsResult,
+  ] = await Promise.all([
+    supabase
+      .from("leads")
+      .select("id,stage_id,created_at")
+      .eq("workspace_id", workspaceId)
+      .returns<LeadRow[]>(),
+    supabase
+      .from("jobs")
+      .select(
+        "id,title,stage_id,scheduled_start,scheduled_end,location,estimated_value,actual_value,status,created_at",
+      )
+      .eq("workspace_id", workspaceId)
+      .returns<JobRow[]>(),
+    supabase
+      .from("tasks")
+      .select("id,title,due_at,priority,status,created_at")
+      .eq("workspace_id", workspaceId)
+      .returns<TaskRow[]>(),
+    supabase
+      .from("appointments")
+      .select("id,title,starts_at,ends_at,location,status")
+      .eq("workspace_id", workspaceId)
+      .gte("starts_at", startOfToday.toISOString())
+      .lt("starts_at", startOfTomorrow.toISOString())
+      .order("starts_at", { ascending: true })
+      .returns<AppointmentRow[]>(),
+    supabase
+      .from("pipeline_stages")
+      .select("id,entity_type,name,color,order_index")
+      .eq("workspace_id", workspaceId)
+      .order("order_index", { ascending: true })
+      .returns<PipelineStageRow[]>(),
+    supabase
+      .from("automation_logs")
+      .select("id,automation_type,status,message,error_message,created_at")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: false })
+      .limit(8)
+      .returns<AutomationLogRow[]>(),
+    supabase
+      .from("audit_logs")
+      .select("id,action,entity_type,created_at")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: false })
+      .limit(8)
+      .returns<AuditLogRow[]>(),
+  ]);
+
+  const firstError =
+    leadsResult.error ??
+    jobsResult.error ??
+    tasksResult.error ??
+    appointmentsResult.error ??
+    pipelineStagesResult.error ??
+    automationLogsResult.error ??
+    auditLogsResult.error;
+
+  if (firstError) {
+    throw new Error(firstError.message);
+  }
+
+  const leads = leadsResult.data ?? [];
+  const jobs = jobsResult.data ?? [];
+  const tasks = tasksResult.data ?? [];
+  const appointments = appointmentsResult.data ?? [];
+  const pipelineStages = pipelineStagesResult.data ?? [];
+  const automationLogs = automationLogsResult.data ?? [];
+  const auditLogs = auditLogsResult.data ?? [];
+
+  const activeJobs = jobs.filter((job) => job.status !== "cancelled");
+  const jobsBookedThisMonth = activeJobs.filter(
+    (job) =>
+      isWithinRange(job.created_at, startOfMonth, startOfNextMonth) ||
+      isWithinRange(job.scheduled_start, startOfMonth, startOfNextMonth),
+  ).length;
+  const estimatedRevenueThisMonth = activeJobs
+    .filter((job) =>
+      job.scheduled_start
+        ? isWithinRange(job.scheduled_start, startOfMonth, startOfNextMonth)
+        : isWithinRange(job.created_at, startOfMonth, startOfNextMonth),
+    )
+    .reduce((total, job) => total + toNumber(job.estimated_value), 0);
+  const overdueTasks = tasks.filter((task) => isTaskOverdue(task, now)).length;
+  const todayJobs = jobs.filter((job) =>
+    isWithinRange(job.scheduled_start, startOfToday, startOfTomorrow),
+  );
+  const completedTasks = tasks.filter((task) => task.status === "done").length;
+  const pendingTasks = tasks.filter(
+    (task) => task.status !== "done" && task.status !== "cancelled",
+  ).length;
+  const recentTasks = [...tasks].sort(
+    (first, second) => dateForTaskSort(first) - dateForTaskSort(second),
+  );
+  const openJobs = jobs.filter(
+    (job) => job.status !== "completed" && job.status !== "cancelled",
+  );
+  const scheduledJobs = jobs.filter(
+    (job) => job.status === "scheduled" && Boolean(job.scheduled_start),
+  );
+  const completedActualRevenue = jobs
+    .filter((job) => job.status === "completed" && job.actual_value !== null)
+    .reduce((total, job) => total + toNumber(job.actual_value), 0);
+
+  return {
+    agendaItems: buildAgendaItems({
+      appointments,
+      jobs: todayJobs,
+    }),
+    kpis: {
+      currencyCode: workspace.currencyCode,
+      estimatedRevenueThisMonth,
+      jobsBookedThisMonth,
+      newLeadsThisMonth: leads.filter((lead) =>
+        isWithinRange(lead.created_at, startOfMonth, startOfNextMonth),
+      ).length,
+      overdueTasks,
+    },
+    pipeline: {
+      jobStages: buildPipelineStages({
+        entityType: "job",
+        records: jobs,
+        stages: pipelineStages,
+      }),
+      leadStages: buildPipelineStages({
+        entityType: "lead",
+        records: leads,
+        stages: pipelineStages,
+      }),
+    },
+    recentActivity: buildActivityItems({
+      auditLogs,
+      automationLogs,
+    }),
+    revenue: {
+      completedActualRevenue,
+      currencyCode: workspace.currencyCode,
+      estimatedRevenueAllOpenJobs: openJobs.reduce(
+        (total, job) => total + toNumber(job.estimated_value),
+        0,
+      ),
+      estimatedRevenueScheduledJobs: scheduledJobs.reduce(
+        (total, job) => total + toNumber(job.estimated_value),
+        0,
+      ),
+      estimatedRevenueThisMonth,
+      jobCount: jobs.length,
+    },
+    taskSummary: {
+      completedTasks,
+      overdueTasks,
+      pendingTasks,
+      recentTasks: recentTasks.slice(0, 5),
+      totalTasks: tasks.length,
+    },
+    workspace,
+  };
+}

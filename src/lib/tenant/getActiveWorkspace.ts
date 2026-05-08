@@ -4,9 +4,13 @@ import type {
   Workspace,
   WorkspaceBranding,
   WorkspaceModules,
+  WorkspaceRolePermission,
+  WorkspaceRole,
 } from "@/types/domain";
+import { getDefaultRolePermission } from "@/lib/permissions/workspace";
 
 type WorkspaceMemberRow = {
+  role: WorkspaceRole;
   workspace_id: string;
 };
 
@@ -47,7 +51,7 @@ export async function getActiveWorkspace(): Promise<ActiveWorkspaceResult> {
 
   const { data: member, error: memberError } = await supabase
     .from("workspace_members")
-    .select("workspace_id")
+    .select("workspace_id,role")
     .eq("user_id", user.id)
     .eq("status", "active")
     .order("created_at", { ascending: true })
@@ -75,6 +79,7 @@ export async function getActiveWorkspace(): Promise<ActiveWorkspaceResult> {
     { data: workspace, error: workspaceError },
     { data: branding, error: brandingError },
     { data: modules, error: modulesError },
+    { data: rolePermissions, error: rolePermissionsError },
   ] = await Promise.all([
     supabase
       .from("workspaces")
@@ -97,15 +102,26 @@ export async function getActiveWorkspace(): Promise<ActiveWorkspaceResult> {
       )
       .eq("workspace_id", workspaceId)
       .maybeSingle<WorkspaceModules>(),
+    member.role === "owner"
+      ? Promise.resolve({ data: null, error: null })
+      : supabase
+          .from("workspace_role_permissions")
+          .select(
+            "id,workspace_id,role,can_view_settings,can_edit_basic_settings,can_edit_branding,can_manage_modules,can_manage_pipeline,can_create_leads,can_create_jobs,can_create_tasks,can_create_appointments,can_view_audit_logs,created_at,updated_at",
+          )
+          .eq("workspace_id", workspaceId)
+          .eq("role", member.role)
+          .maybeSingle<WorkspaceRolePermission>(),
   ]);
 
-  if (workspaceError || brandingError || modulesError) {
+  if (workspaceError || brandingError || modulesError || rolePermissionsError) {
     return {
       context: null,
       error:
         workspaceError?.message ??
         brandingError?.message ??
-        modulesError?.message,
+        modulesError?.message ??
+        rolePermissionsError?.message,
       status: "error",
     };
   }
@@ -121,6 +137,8 @@ export async function getActiveWorkspace(): Promise<ActiveWorkspaceResult> {
     context: {
       branding,
       modules,
+      role: member.role,
+      rolePermissions: rolePermissions ?? getDefaultRolePermission(member.role),
       workspace,
     },
     status: "ready",

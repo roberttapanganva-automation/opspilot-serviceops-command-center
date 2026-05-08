@@ -11,7 +11,7 @@ const variants: Record<ButtonVariant, string> = {
   primary:
     "bg-[var(--ops-primary)] text-white shadow-[0_12px_28px_var(--ops-primary-glow)] hover:bg-[var(--ops-primary-dark)]",
   secondary:
-    "border border-[var(--ops-border)] bg-white text-[var(--ops-text)] hover:bg-[var(--ops-card-soft)]",
+    "border border-[var(--ops-border)] bg-[var(--ops-card)] text-[var(--ops-text)] hover:bg-[var(--ops-card-soft)]",
   ghost:
     "text-[var(--ops-text-soft)] hover:bg-[var(--ops-card-soft)] hover:text-[var(--ops-text)]",
 };

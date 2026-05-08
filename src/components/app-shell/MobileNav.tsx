@@ -2,17 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navItems } from "./nav-items";
+import type { ActiveWorkspaceContext } from "@/types/domain";
+import { getVisibleNavItems } from "./nav-items";
 
-const mobileItems = navItems.slice(0, 5);
+type MobileNavProps = {
+  workspaceContext: ActiveWorkspaceContext;
+};
 
-export function MobileNav() {
+export function MobileNav({ workspaceContext }: MobileNavProps) {
   const pathname = usePathname();
+  const visibleItems = getVisibleNavItems(workspaceContext);
+  const ownerItem = visibleItems.find((item) => item.href === "/owner");
+  const mobileItems = ownerItem
+    ? [...visibleItems.filter((item) => item.href !== "/owner").slice(0, 4), ownerItem]
+    : visibleItems.slice(0, 5);
 
   return (
     <nav
       aria-label="Mobile"
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--ops-border)] bg-white/95 px-2 py-2 backdrop-blur lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--ops-border)] bg-[var(--ops-card)]/95 px-2 py-2 backdrop-blur lg:hidden"
     >
       <div className="grid grid-cols-5 gap-1">
         {mobileItems.map((item) => {
@@ -30,7 +38,7 @@ export function MobileNav() {
               href={item.href}
               key={item.href}
             >
-              <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+              <Icon aria-hidden="true" size={22} weight="duotone" />
               {item.label}
             </Link>
           );

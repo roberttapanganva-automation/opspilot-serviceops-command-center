@@ -2,31 +2,42 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navItems } from "./nav-items";
+import type { ActiveWorkspaceContext } from "@/types/domain";
+import { getVisibleNavItems } from "./nav-items";
 import { UserMenu } from "./UserMenu";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
-export function Sidebar() {
+type SidebarProps = {
+  workspaceContext: ActiveWorkspaceContext;
+};
+
+export function Sidebar({ workspaceContext }: SidebarProps) {
   const pathname = usePathname();
+  const appName = workspaceContext.branding?.app_name ?? "OpsPilot";
+  const iconUrl = workspaceContext.branding?.icon_url ?? null;
+  const visibleNavItems = getVisibleNavItems(workspaceContext);
 
   return (
     <aside className="fixed inset-y-0 left-0 hidden w-[260px] shrink-0 bg-[var(--ops-sidebar)] px-5 py-6 text-[var(--ops-white)] lg:flex lg:flex-col">
       <Link className="flex items-center gap-3" href="/dashboard">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--ops-primary)] text-sm font-bold">
-          OP
+        <span
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--ops-primary)] bg-cover bg-center text-sm font-bold"
+          style={iconUrl ? { backgroundImage: `url("${iconUrl}")` } : undefined}
+        >
+          {iconUrl ? null : "OP"}
         </span>
-        <span>
-          <span className="block text-sm font-semibold tracking-wide">
-            OpsPilot
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold tracking-wide">
+            {appName}
           </span>
           <span className="block text-xs text-white/55">Command Center</span>
         </span>
       </Link>
 
-      <WorkspaceSwitcher />
+      <WorkspaceSwitcher workspaceContext={workspaceContext} />
 
       <nav className="mt-8 flex flex-1 flex-col gap-1" aria-label="Main">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.Icon;
 
@@ -41,7 +52,7 @@ export function Sidebar() {
               href={item.href}
               key={item.href}
             >
-              <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+              <Icon aria-hidden="true" size={20} weight="duotone" />
               {item.label}
             </Link>
           );

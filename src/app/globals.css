@@ -38,6 +38,28 @@
   --foreground: var(--ops-text);
 }
 
+html[data-theme="dark"] {
+  --ops-main-bg: #0f172a;
+  --ops-card: #111c2f;
+  --ops-card-soft: #17233a;
+
+  --ops-border: #26344d;
+  --ops-border-strong: #334155;
+
+  --ops-text: #f8fafc;
+  --ops-text-soft: #cbd5e1;
+  --ops-text-muted: #94a3b8;
+
+  --ops-primary-soft: rgba(109, 93, 252, 0.18);
+  --ops-success-soft: rgba(22, 163, 74, 0.16);
+  --ops-warning-soft: rgba(245, 158, 11, 0.16);
+  --ops-danger-soft: rgba(239, 68, 68, 0.16);
+  --ops-info-soft: rgba(14, 165, 233, 0.16);
+
+  --background: var(--ops-main-bg);
+  --foreground: var(--ops-text);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -1,6 +1,13 @@
-import { ChevronDown } from "lucide-react";
+import { CaretDownIcon } from "@phosphor-icons/react/ssr";
+import type { ActiveWorkspaceContext } from "@/types/domain";
 
-export function WorkspaceSwitcher() {
+type WorkspaceSwitcherProps = {
+  workspaceContext: ActiveWorkspaceContext;
+};
+
+export function WorkspaceSwitcher({ workspaceContext }: WorkspaceSwitcherProps) {
+  const workspaceName = workspaceContext.workspace.name;
+
   return (
     <button
       aria-label="Workspace switcher placeholder"
@@ -11,11 +18,16 @@ export function WorkspaceSwitcher() {
         Workspace
       </span>
       <span className="mt-2 flex items-center justify-between gap-3 text-sm font-semibold text-[var(--ops-white)]">
-        No workspace loaded
-        <ChevronDown aria-hidden="true" className="h-4 w-4 text-white/55" />
+        <span className="truncate">{workspaceName}</span>
+        <CaretDownIcon
+          aria-hidden="true"
+          className="shrink-0 text-white/55"
+          size={20}
+          weight="regular"
+        />
       </span>
       <span className="mt-1 block text-xs leading-5 text-white/55">
-        Connect workspace data later.
+        Workspace switching comes later.
       </span>
     </button>
   );

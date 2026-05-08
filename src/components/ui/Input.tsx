@@ -23,7 +23,7 @@ export function Input({
         </span>
       ) : null}
       <input
-        className={`h-10 w-full min-w-0 rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition placeholder:text-[var(--ops-text-muted)] focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)] sm:w-64 ${icon ? "pl-9" : ""} ${className}`}
+        className={`h-10 w-full min-w-0 rounded-lg border border-[var(--ops-border)] bg-[var(--ops-card)] px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition placeholder:text-[var(--ops-text-muted)] focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)] sm:w-64 ${icon ? "pl-9" : ""} ${className}`}
         id={id}
         {...props}
       />

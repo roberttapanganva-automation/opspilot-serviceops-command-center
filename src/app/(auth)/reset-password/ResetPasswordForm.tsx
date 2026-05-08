@@ -2,7 +2,11 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, CheckCircle2, Mail } from "lucide-react";
+import {
+  CheckCircleIcon,
+  EnvelopeSimpleIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
@@ -60,7 +64,12 @@ export function ResetPasswordForm({ envError }: ResetPasswordFormProps) {
           className="flex gap-3 rounded-lg border border-[var(--ops-danger-soft)] bg-[var(--ops-danger-soft)] p-3 text-sm leading-6 text-[var(--ops-danger)]"
           role="alert"
         >
-          <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+          <WarningCircleIcon
+            aria-hidden="true"
+            className="mt-0.5 shrink-0"
+            size={20}
+            weight="regular"
+          />
           <p>{error}</p>
         </div>
       ) : null}
@@ -70,9 +79,11 @@ export function ResetPasswordForm({ envError }: ResetPasswordFormProps) {
           className="flex gap-3 rounded-lg border border-[var(--ops-success-soft)] bg-[var(--ops-success-soft)] p-3 text-sm leading-6 text-[var(--ops-success)]"
           role="status"
         >
-          <CheckCircle2
+          <CheckCircleIcon
             aria-hidden="true"
-            className="mt-0.5 h-4 w-4 shrink-0"
+            className="mt-0.5 shrink-0"
+            size={20}
+            weight="regular"
           />
           <p>If that email exists, Supabase will send reset instructions.</p>
         </div>
@@ -89,7 +100,13 @@ export function ResetPasswordForm({ envError }: ResetPasswordFormProps) {
           autoComplete="email"
           className="mt-2 sm:w-full"
           id="reset-email"
-          icon={<Mail aria-hidden="true" className="h-4 w-4" />}
+          icon={
+            <EnvelopeSimpleIcon
+              aria-hidden="true"
+              size={20}
+              weight="regular"
+            />
+          }
           label="Email"
           name="email"
           placeholder="you@example.com"

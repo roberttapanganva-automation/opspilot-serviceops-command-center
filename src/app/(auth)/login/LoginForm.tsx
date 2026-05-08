@@ -3,7 +3,11 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, Lock, Mail } from "lucide-react";
+import {
+  EnvelopeSimpleIcon,
+  LockIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +24,14 @@ function getHumanError(message: string) {
   return message;
 }
 
+function getSafeRedirectPath(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/dashboard";
+  }
+
+  return value;
+}
+
 export function LoginForm({ envError }: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -27,8 +39,9 @@ export function LoginForm({ envError }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const nextPath = useMemo(() => {
-    const next = searchParams.get("next");
-    return next?.startsWith("/") ? next : "/dashboard";
+    return getSafeRedirectPath(
+      searchParams.get("redirect") ?? searchParams.get("next"),
+    );
   }, [searchParams]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -72,7 +85,12 @@ export function LoginForm({ envError }: LoginFormProps) {
           className="flex gap-3 rounded-lg border border-[var(--ops-danger-soft)] bg-[var(--ops-danger-soft)] p-3 text-sm leading-6 text-[var(--ops-danger)]"
           role="alert"
         >
-          <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+          <WarningCircleIcon
+            aria-hidden="true"
+            className="mt-0.5 shrink-0"
+            size={20}
+            weight="regular"
+          />
           <p>{error}</p>
         </div>
       ) : null}
@@ -88,7 +106,13 @@ export function LoginForm({ envError }: LoginFormProps) {
           autoComplete="email"
           className="mt-2 sm:w-full"
           id="email"
-          icon={<Mail aria-hidden="true" className="h-4 w-4" />}
+          icon={
+            <EnvelopeSimpleIcon
+              aria-hidden="true"
+              size={20}
+              weight="regular"
+            />
+          }
           label="Email"
           name="email"
           placeholder="you@example.com"
@@ -116,7 +140,7 @@ export function LoginForm({ envError }: LoginFormProps) {
           autoComplete="current-password"
           className="mt-2 sm:w-full"
           id="password"
-          icon={<Lock aria-hidden="true" className="h-4 w-4" />}
+          icon={<LockIcon aria-hidden="true" size={20} weight="regular" />}
           label="Password"
           name="password"
           placeholder="Password"

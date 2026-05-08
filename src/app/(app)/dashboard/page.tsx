@@ -1,71 +1,67 @@
+import {
+  BriefcaseIcon,
+  CurrencyDollarIcon,
+  ListChecksIcon,
+  UserPlusIcon,
+} from "@phosphor-icons/react/ssr";
+import { AIAssistantCard } from "@/components/dashboard/AIAssistantCard";
+import { PipelineOverview } from "@/components/dashboard/PipelineOverview";
+import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { RevenueOverview } from "@/components/dashboard/RevenueOverview";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { Card } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { SectionHeader } from "@/components/ui/SectionHeader";
+import { TasksOverview } from "@/components/dashboard/TasksOverview";
+import { TodayAgenda } from "@/components/dashboard/TodayAgenda";
+import { formatCurrency } from "@/lib/formatting/currency";
+import { getDashboardOverview } from "@/lib/dashboard/queries";
 
-const stats = [
-  {
-    label: "New Leads",
-    value: "No data",
-    helper: "Connect Supabase before showing metrics.",
-  },
-  {
-    label: "Jobs Booked",
-    value: "No data",
-    helper: "Real job counts arrive after CRUD.",
-  },
-  {
-    label: "Revenue (Est.)",
-    value: "No data",
-    helper: "Estimated revenue will use workspace data.",
-  },
-  {
-    label: "Overdue Tasks",
-    value: "No data",
-    helper: "Overdue status will be calculated dynamically.",
-  },
-];
+export default async function DashboardPage() {
+  const overview = await getDashboardOverview();
+  const stats = [
+    {
+      description: "Leads created in the current month.",
+      icon: UserPlusIcon,
+      title: "New Leads",
+      tone: "primary" as const,
+      value: String(overview.kpis.newLeadsThisMonth),
+    },
+    {
+      description: "Non-cancelled jobs created or scheduled this month.",
+      icon: BriefcaseIcon,
+      title: "Jobs Booked",
+      tone: "info" as const,
+      value: String(overview.kpis.jobsBookedThisMonth),
+    },
+    {
+      description: "Estimated job value for this month.",
+      icon: CurrencyDollarIcon,
+      title: "Revenue (Est.)",
+      tone: "success" as const,
+      value: formatCurrency(
+        overview.kpis.estimatedRevenueThisMonth,
+        overview.kpis.currencyCode,
+      ),
+    },
+    {
+      description: "Tasks past due that are not done or cancelled.",
+      icon: ListChecksIcon,
+      title: "Overdue Tasks",
+      tone: "warning" as const,
+      value: String(overview.kpis.overdueTasks),
+    },
+  ];
 
-const dashboardSections = [
-  {
-    title: "Pipeline Overview",
-    description: "Lead and job stages will render here after database setup.",
-  },
-  {
-    title: "Today's Agenda",
-    description: "Appointments and scheduled jobs will appear here.",
-  },
-  {
-    title: "Tasks Overview",
-    description: "Task status summaries will use real workspace tasks.",
-  },
-  {
-    title: "Revenue Overview",
-    description: "Estimated revenue remains empty until jobs exist.",
-  },
-  {
-    title: "Recent Activity",
-    description: "Automation and audit logs will appear after logging exists.",
-  },
-  {
-    title: "AI Assistant",
-    description: "AI is intentionally only a placeholder in this phase.",
-  },
-];
-
-export default function DashboardPage() {
   return (
-    <div className="space-y-6">
-      <section className="rounded-xl border border-[var(--ops-border)] bg-white p-6 shadow-sm">
-        <p className="text-sm font-medium text-[var(--ops-primary-dark)]">
+    <div className="space-y-5 sm:space-y-6">
+      <section className="rounded-xl border border-[var(--ops-border)] bg-white p-5 shadow-sm sm:p-6">
+        <p className="text-sm font-semibold text-[var(--ops-primary-dark)]">
           What needs attention today?
         </p>
-        <h2 className="mt-2 text-2xl font-semibold text-[var(--ops-text)]">
-          Welcome to OpsPilot
+        <h2 className="mt-2 text-2xl font-semibold tracking-normal text-[var(--ops-text)] sm:text-3xl">
+          Your operations command center is live.
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--ops-text-soft)]">
-          This is the initial App Router foundation. Workspace loading,
-          Supabase data, and real dashboard metrics come in later phases.
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--ops-text-soft)]">
+          Dashboard metrics are loaded from the active workspace across leads,
+          jobs, tasks, appointments, and activity logs.
         </p>
       </section>
 
@@ -74,22 +70,26 @@ export default function DashboardPage() {
         className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
       >
         {stats.map((stat) => (
-          <StatCard key={stat.label} {...stat} />
+          <StatCard key={stat.title} {...stat} />
         ))}
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        {dashboardSections.map((section) => (
-          <Card className="p-5" key={section.title}>
-            <SectionHeader title={section.title} />
-            <div className="mt-4">
-              <EmptyState
-                description={section.description}
-                title="No workspace data yet"
-              />
-            </div>
-          </Card>
-        ))}
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+        <PipelineOverview
+          jobStages={overview.pipeline.jobStages}
+          leadStages={overview.pipeline.leadStages}
+        />
+        <TodayAgenda items={overview.agendaItems} />
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        <TasksOverview summary={overview.taskSummary} />
+        <RevenueOverview summary={overview.revenue} />
+        <RecentActivity items={overview.recentActivity} />
+      </section>
+
+      <section>
+        <AIAssistantCard />
       </section>
     </div>
   );

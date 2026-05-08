@@ -1,0 +1,133 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { FormEvent, useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { getAssignableRoles } from "@/lib/permissions/workspace";
+import type { ApiResponse } from "@/types/api";
+import type { WorkspaceInvitation } from "@/types/domain";
+
+export function InviteMemberForm() {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setInviteLink(null);
+    setSuccess(null);
+    setIsSubmitting(true);
+
+    const formData = new FormData(event.currentTarget);
+    const payload = {
+      expires_at: String(formData.get("expires_at") ?? ""),
+      invited_email: String(formData.get("invited_email") ?? ""),
+      role: String(formData.get("role") ?? "staff"),
+    };
+
+    try {
+      const response = await fetch("/api/owner/invitations", {
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const result = (await response.json()) as ApiResponse<WorkspaceInvitation>;
+
+      if (!response.ok || !result.ok) {
+        setError(result.ok ? "Invite creation failed." : result.error.message);
+        return;
+      }
+
+      event.currentTarget.reset();
+      setSuccess("Pending invite created. Copy the invite link and send it manually for now.");
+      setInviteLink(`${window.location.origin}/invite/${result.data.id}`);
+      router.refresh();
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Invite creation failed.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <Card className="p-5 sm:p-6">
+      <h2 className="font-semibold text-[var(--ops-text)]">Invite Member</h2>
+      <p className="mt-2 text-sm leading-6 text-[var(--ops-text-soft)]">
+        Pending invite record only. Email sending will be connected later.
+      </p>
+
+      <form className="mt-5 grid gap-4 lg:grid-cols-[1fr_180px_220px_auto]" onSubmit={handleSubmit}>
+        {error ? (
+          <p className="rounded-lg bg-[var(--ops-danger-soft)] p-3 text-sm text-[var(--ops-danger)] lg:col-span-4" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {success ? (
+          <div className="rounded-lg bg-[var(--ops-success-soft)] p-3 text-sm text-[var(--ops-success)] lg:col-span-4">
+            <p>{success}</p>
+            {inviteLink ? (
+              <p className="mt-2 break-all font-medium">{inviteLink}</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div>
+          <label className="text-sm font-medium text-[var(--ops-text)]" htmlFor="invite-email">
+            Email
+          </label>
+          <input
+            className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+            id="invite-email"
+            name="invited_email"
+            required
+            type="email"
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-[var(--ops-text)]" htmlFor="invite-role">
+            Role
+          </label>
+          <select
+            className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+            id="invite-role"
+            name="role"
+            required
+          >
+            {getAssignableRoles().map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-[var(--ops-text)]" htmlFor="invite-expires">
+            Expires
+          </label>
+          <input
+            className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+            id="invite-expires"
+            name="expires_at"
+            type="datetime-local"
+          />
+        </div>
+
+        <div className="flex items-end">
+          <Button disabled={isSubmitting} type="submit">
+            {isSubmitting ? "Creating..." : "Create Invite"}
+          </Button>
+        </div>
+      </form>
+    </Card>
+  );
+}
