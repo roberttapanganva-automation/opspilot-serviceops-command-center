@@ -1,10 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import { getPipelinePreviewForDashboard } from "@/lib/pipelines/queries";
 import { getActiveWorkspace } from "@/lib/tenant/getActiveWorkspace";
 import type {
   DashboardActivityItem,
   DashboardAgendaItem,
   DashboardOverview,
-  DashboardPipelineStageSummary,
   DashboardTaskItem,
 } from "@/types/domain";
 
@@ -36,14 +36,6 @@ type AppointmentRow = {
   starts_at: string;
   status: "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
   title: string;
-};
-
-type PipelineStageRow = {
-  color: string;
-  entity_type: "lead" | "job";
-  id: string;
-  name: string;
-  order_index: number;
 };
 
 type AutomationLogRow = {
@@ -110,38 +102,6 @@ function isTaskOverdue(task: TaskRow, now: Date) {
 
 function dateForTaskSort(task: TaskRow) {
   return new Date(task.due_at ?? task.created_at).getTime();
-}
-
-function buildPipelineStages({
-  entityType,
-  records,
-  stages,
-}: {
-  entityType: "lead" | "job";
-  records: Array<{ stage_id: string | null }>;
-  stages: PipelineStageRow[];
-}): DashboardPipelineStageSummary[] {
-  const counts = new Map<string, number>();
-
-  for (const record of records) {
-    if (!record.stage_id) {
-      continue;
-    }
-
-    counts.set(record.stage_id, (counts.get(record.stage_id) ?? 0) + 1);
-  }
-
-  return stages
-    .filter((stage) => stage.entity_type === entityType)
-    .sort((first, second) => first.order_index - second.order_index)
-    .map((stage) => ({
-      color: stage.color,
-      count: counts.get(stage.id) ?? 0,
-      entity_type: entityType,
-      id: stage.id,
-      name: stage.name,
-      order_index: stage.order_index,
-    }));
 }
 
 function buildAgendaItems({
@@ -226,8 +186,13 @@ function createEmptyDashboardOverview(
       overdueTasks: 0,
     },
     pipeline: {
-      jobStages: [],
-      leadStages: [],
+      entity_type: null,
+      group: null,
+      has_configured_stages: false,
+      has_error: false,
+      stages: [],
+      total_cards: 0,
+      total_estimated_value: 0,
     },
     recentActivity: [],
     revenue: {
@@ -280,9 +245,9 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
     jobsResult,
     tasksResult,
     appointmentsResult,
-    pipelineStagesResult,
     automationLogsResult,
     auditLogsResult,
+    pipelinePreview,
   ] = await Promise.all([
     supabase
       .from("leads")
@@ -310,12 +275,6 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
       .order("starts_at", { ascending: true })
       .returns<AppointmentRow[]>(),
     supabase
-      .from("pipeline_stages")
-      .select("id,entity_type,name,color,order_index")
-      .eq("workspace_id", workspaceId)
-      .order("order_index", { ascending: true })
-      .returns<PipelineStageRow[]>(),
-    supabase
       .from("automation_logs")
       .select("id,automation_type,status,message,error_message,created_at")
       .eq("workspace_id", workspaceId)
@@ -329,26 +288,25 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
       .order("created_at", { ascending: false })
       .limit(8)
       .returns<AuditLogRow[]>(),
+    getPipelinePreviewForDashboard(),
   ]);
 
-  const firstError =
+  const fatalError =
     leadsResult.error ??
     jobsResult.error ??
     tasksResult.error ??
     appointmentsResult.error ??
-    pipelineStagesResult.error ??
     automationLogsResult.error ??
     auditLogsResult.error;
 
-  if (firstError) {
-    throw new Error(firstError.message);
+  if (fatalError) {
+    throw new Error(fatalError.message);
   }
 
   const leads = leadsResult.data ?? [];
   const jobs = jobsResult.data ?? [];
   const tasks = tasksResult.data ?? [];
   const appointments = appointmentsResult.data ?? [];
-  const pipelineStages = pipelineStagesResult.data ?? [];
   const automationLogs = automationLogsResult.data ?? [];
   const auditLogs = auditLogsResult.data ?? [];
 
@@ -400,18 +358,7 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
       ).length,
       overdueTasks,
     },
-    pipeline: {
-      jobStages: buildPipelineStages({
-        entityType: "job",
-        records: jobs,
-        stages: pipelineStages,
-      }),
-      leadStages: buildPipelineStages({
-        entityType: "lead",
-        records: leads,
-        stages: pipelineStages,
-      }),
-    },
+    pipeline: pipelinePreview,
     recentActivity: buildActivityItems({
       auditLogs,
       automationLogs,

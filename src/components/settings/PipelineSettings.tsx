@@ -10,6 +10,15 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import type { ApiResponse } from "@/types/api";
 import type { PipelineStage } from "@/types/domain";
 
+function normalizeHexColor(value: string) {
+  const trimmed = value.trim();
+  return /^#[0-9a-fA-F]{6}$/.test(trimmed) ? trimmed.toUpperCase() : trimmed;
+}
+
+function isHexColor(value: string) {
+  return /^#[0-9A-F]{6}$/.test(normalizeHexColor(value));
+}
+
 type PipelineSettingsProps = {
   canManageSettings: boolean;
   stages: PipelineStage[];
@@ -47,6 +56,7 @@ function StageRow({
 }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [color, setColor] = useState(stage.color);
   const disabled = !canManageSettings || isSaving || isDeleting;
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
@@ -92,15 +102,31 @@ function StageRow({
           >
             Color
           </label>
-          <input
-            className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-            defaultValue={stage.color}
-            disabled={disabled}
-            id={`stage-color-${stage.id}`}
-            name="color"
-            required
-            type="text"
-          />
+          <div className="mt-2 flex h-10 items-center gap-2 rounded-lg border border-[var(--ops-border)] bg-white px-3">
+            <span
+              aria-hidden="true"
+              className="h-4 w-4 rounded-full border border-[var(--ops-border)]"
+              style={{ backgroundColor: isHexColor(color) ? normalizeHexColor(color) : "#CBD5E1" }}
+            />
+            <input
+              className="min-w-0 flex-1 bg-transparent text-sm text-[var(--ops-text)] outline-none"
+              disabled={disabled}
+              id={`stage-color-${stage.id}`}
+              name="color"
+              onChange={(event) => setColor(normalizeHexColor(event.target.value))}
+              required
+              type="text"
+              value={color}
+            />
+            <input
+              aria-label="Pick stage color"
+              className="h-6 w-8 cursor-pointer appearance-none rounded border border-[var(--ops-border)] bg-transparent p-0"
+              disabled={disabled}
+              onChange={(event) => setColor(normalizeHexColor(event.target.value))}
+              type="color"
+              value={isHexColor(color) ? normalizeHexColor(color) : "#6D5DFC"}
+            />
+          </div>
         </div>
         <div>
           <label
@@ -168,15 +194,22 @@ function AddStageForm({
 }: {
   canManageSettings: boolean;
   entityType: "lead" | "job";
-  onAdd: (form: HTMLFormElement, entityType: "lead" | "job") => Promise<void>;
+  onAdd: (
+    form: HTMLFormElement,
+    entityType: "lead" | "job",
+  ) => Promise<boolean>;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [color, setColor] = useState("#6D5DFC");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
-    await onAdd(event.currentTarget, entityType);
-    event.currentTarget.reset();
+    const didCreate = await onAdd(event.currentTarget, entityType);
+    if (didCreate) {
+      event.currentTarget.reset();
+      setColor("#6D5DFC");
+    }
     setIsSubmitting(false);
   }
 
@@ -198,12 +231,33 @@ function AddStageForm({
           type="text"
         />
         <input
-          className="h-10 rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-          defaultValue="#6D5DFC"
+          className="hidden"
           name="color"
-          required
-          type="text"
+          readOnly
+          value={color}
         />
+        <div className="flex h-10 items-center gap-2 rounded-lg border border-[var(--ops-border)] bg-white px-3">
+          <span
+            aria-hidden="true"
+            className="h-4 w-4 rounded-full border border-[var(--ops-border)]"
+            style={{ backgroundColor: isHexColor(color) ? normalizeHexColor(color) : "#CBD5E1" }}
+          />
+          <input
+            aria-label={`Hex color for ${entityType} stage`}
+            className="min-w-0 flex-1 bg-transparent text-sm text-[var(--ops-text)] outline-none"
+            onChange={(event) => setColor(normalizeHexColor(event.target.value))}
+            required
+            type="text"
+            value={color}
+          />
+          <input
+            aria-label={`Pick ${entityType} stage color`}
+            className="h-6 w-8 cursor-pointer appearance-none rounded border border-[var(--ops-border)] bg-transparent p-0"
+            onChange={(event) => setColor(normalizeHexColor(event.target.value))}
+            type="color"
+            value={isHexColor(color) ? normalizeHexColor(color) : "#6D5DFC"}
+          />
+        </div>
         <input
           className="h-10 rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
           defaultValue={0}
@@ -229,7 +283,10 @@ export function PipelineSettings({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  async function addStage(form: HTMLFormElement, entityType: "lead" | "job") {
+  async function addStage(
+    form: HTMLFormElement,
+    entityType: "lead" | "job",
+  ): Promise<boolean> {
     setError(null);
     setSuccess(null);
 
@@ -248,7 +305,7 @@ export function PipelineSettings({
 
     if (!response.ok || message) {
       setError(message ?? "We could not create the stage.");
-      return;
+      return false;
     }
 
     if (result.ok) {
@@ -259,7 +316,10 @@ export function PipelineSettings({
       );
       setSuccess("Pipeline stage created.");
       router.refresh();
+      return true;
     }
+
+    return false;
   }
 
   async function saveStage(stageId: string, form: HTMLFormElement) {

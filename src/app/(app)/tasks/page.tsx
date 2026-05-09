@@ -1,7 +1,10 @@
 import { TasksList } from "@/components/tasks/TasksList";
 import { TasksPageHeader } from "@/components/tasks/TasksPageHeader";
 import { getEffectiveRolePermission } from "@/lib/permissions/effective";
-import { canCreateOperationalRecords } from "@/lib/permissions/workspace";
+import {
+  canCreateOperationalRecords,
+  canDeleteOperationalRecords,
+} from "@/lib/permissions/workspace";
 import { createClient } from "@/lib/supabase/server";
 import { getTasksForActiveWorkspace } from "@/lib/tasks/queries";
 import { getActiveWorkspace } from "@/lib/tenant/getActiveWorkspace";
@@ -22,11 +25,18 @@ export default async function TasksPage() {
     activeWorkspace.status === "ready" &&
     canCreateOperationalRecords(activeWorkspace.context.role) &&
     rolePermission?.can_create_tasks !== false;
+  const canDeleteRecords =
+    activeWorkspace.status === "ready" &&
+    canDeleteOperationalRecords(activeWorkspace.context.role);
 
   return (
     <div className="space-y-5 sm:space-y-6">
       <TasksPageHeader canCreateRecords={canCreateRecords} />
-      <TasksList canCreateRecords={canCreateRecords} tasks={tasks} />
+      <TasksList
+        canCreateRecords={canCreateRecords}
+        canDeleteRecords={canDeleteRecords}
+        tasks={tasks}
+      />
     </div>
   );
 }

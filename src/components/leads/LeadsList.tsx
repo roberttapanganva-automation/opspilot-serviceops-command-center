@@ -1,4 +1,6 @@
 import { Card } from "@/components/ui/Card";
+import { DateTimeCell, DateTimeHeader } from "@/components/ui/DateTimeCell";
+import { DeleteRecordButton } from "@/components/records/DeleteRecordButton";
 import { LeadStatusBadge, type LeadStatus } from "./LeadStatusBadge";
 import { LeadPriorityBadge, type LeadPriority } from "./LeadPriorityBadge";
 import { LeadsEmptyState } from "./LeadsEmptyState";
@@ -21,19 +23,9 @@ export type LeadListItem = {
 
 type LeadsListProps = {
   canCreateRecords: boolean;
+  canDeleteRecords: boolean;
   leads: LeadListItem[];
 };
-
-function formatDate(value: string | null) {
-  if (!value) {
-    return "Not scheduled";
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
 
 function formatCreatedDate(value: string) {
   return new Intl.DateTimeFormat("en", {
@@ -49,7 +41,11 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export function LeadsList({ canCreateRecords, leads }: LeadsListProps) {
+export function LeadsList({
+  canCreateRecords,
+  canDeleteRecords,
+  leads,
+}: LeadsListProps) {
   if (leads.length === 0) {
     return <LeadsEmptyState canCreateRecords={canCreateRecords} />;
   }
@@ -85,11 +81,16 @@ export function LeadsList({ canCreateRecords, leads }: LeadsListProps) {
                 Source
               </th>
               <th className="px-5 py-3" scope="col">
-                Next follow-up
+                <DateTimeHeader label="Next follow-up" />
               </th>
               <th className="px-5 py-3" scope="col">
                 Created
               </th>
+              {canDeleteRecords ? (
+                <th className="px-5 py-3 text-right" scope="col">
+                  Action
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--ops-border)] bg-white">
@@ -119,11 +120,19 @@ export function LeadsList({ canCreateRecords, leads }: LeadsListProps) {
                   {lead.source ?? "Not set"}
                 </td>
                 <td className="px-5 py-4 text-[var(--ops-text-soft)]">
-                  {formatDate(lead.next_follow_up_at)}
+                  <DateTimeCell value={lead.next_follow_up_at} />
                 </td>
                 <td className="px-5 py-4 text-[var(--ops-text-soft)]">
                   {formatCreatedDate(lead.created_at)}
                 </td>
+                {canDeleteRecords ? (
+                  <td className="px-5 py-4">
+                    <DeleteRecordButton
+                      endpoint={`/api/leads/${lead.id}`}
+                      label={`Delete lead ${lead.title}`}
+                    />
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>
@@ -146,6 +155,14 @@ export function LeadsList({ canCreateRecords, leads }: LeadsListProps) {
               </div>
               <LeadStatusBadge status={lead.status} />
             </div>
+            {canDeleteRecords ? (
+              <div className="mt-4 flex justify-end">
+                <DeleteRecordButton
+                  endpoint={`/api/leads/${lead.id}`}
+                  label={`Delete lead ${lead.title}`}
+                />
+              </div>
+            ) : null}
 
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
               <div>
@@ -177,7 +194,7 @@ export function LeadsList({ canCreateRecords, leads }: LeadsListProps) {
                   Next follow-up
                 </p>
                 <p className="mt-1 text-[var(--ops-text-soft)]">
-                  {formatDate(lead.next_follow_up_at)}
+                  <DateTimeCell value={lead.next_follow_up_at} />
                 </p>
               </div>
             </div>

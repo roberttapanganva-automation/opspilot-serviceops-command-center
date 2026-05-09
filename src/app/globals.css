@@ -80,3 +80,7 @@ textarea,
 select {
   font: inherit;
 }
+
+.bg-white {
+  background-color: var(--ops-card);
+}

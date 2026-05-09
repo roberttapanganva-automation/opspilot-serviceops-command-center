@@ -1,6 +1,7 @@
 "use client";
 
 import { brandingColorPresets } from "@/lib/branding/colorPresets";
+import { normalizeHexColor, validateHexColor } from "@/lib/validation/branding";
 
 type BrandingColorPickerProps = {
   accentColor: string;
@@ -10,10 +11,6 @@ type BrandingColorPickerProps = {
   primaryColor: string;
 };
 
-function normalizeColorInput(value: string) {
-  return value.trim().toUpperCase();
-}
-
 export function BrandingColorPicker({
   accentColor,
   disabled = false,
@@ -21,6 +18,11 @@ export function BrandingColorPicker({
   onPrimaryColorChange,
   primaryColor,
 }: BrandingColorPickerProps) {
+  const primaryIsValid = validateHexColor(primaryColor);
+  const accentIsValid = validateHexColor(accentColor);
+  const primarySwatchColor = primaryIsValid ? normalizeHexColor(primaryColor) : "#CBD5E1";
+  const accentSwatchColor = accentIsValid ? normalizeHexColor(accentColor) : "#CBD5E1";
+
   const currentPreset =
     brandingColorPresets.find(
       (preset) =>
@@ -29,6 +31,37 @@ export function BrandingColorPicker({
 
   return (
     <div className="rounded-xl border border-[var(--ops-border)] bg-[var(--ops-card)] p-4">
+      <div className="mb-4 flex flex-wrap gap-2">
+        {brandingColorPresets
+          .filter((preset) => preset.label !== "Custom")
+          .map((preset) => (
+            <button
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--ops-border)] bg-[var(--ops-card-soft)] px-3 py-1 text-xs font-semibold text-[var(--ops-text-soft)] transition hover:border-[var(--ops-primary)] hover:text-[var(--ops-text)]"
+              disabled={disabled}
+              key={preset.label}
+              onClick={() => {
+                onPrimaryColorChange(preset.primary_color);
+                onAccentColorChange(preset.accent_color);
+              }}
+              type="button"
+            >
+              <span className="inline-flex items-center gap-1">
+                <span
+                  aria-hidden="true"
+                  className="h-3 w-3 rounded-full border border-[var(--ops-border)]"
+                  style={{ backgroundColor: preset.primary_color }}
+                />
+                <span
+                  aria-hidden="true"
+                  className="h-3 w-3 rounded-full border border-[var(--ops-border)]"
+                  style={{ backgroundColor: preset.accent_color }}
+                />
+              </span>
+              {preset.label}
+            </button>
+          ))}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[220px_1fr_1fr]">
         <div>
           <label
@@ -74,7 +107,7 @@ export function BrandingColorPicker({
             <span
               aria-hidden="true"
               className="h-5 w-5 rounded-full border border-[var(--ops-border)]"
-              style={{ backgroundColor: primaryColor }}
+              style={{ backgroundColor: primarySwatchColor }}
             />
             <input
               className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[var(--ops-text)] outline-none"
@@ -82,12 +115,28 @@ export function BrandingColorPicker({
               id="branding-primary-color"
               name="primary_color"
               onChange={(event) =>
-                onPrimaryColorChange(normalizeColorInput(event.target.value))
+                onPrimaryColorChange(normalizeHexColor(event.target.value))
+              }
+              onBlur={(event) =>
+                onPrimaryColorChange(normalizeHexColor(event.target.value))
               }
               required
               value={primaryColor}
             />
+            <input
+              aria-label="Pick primary color"
+              className="h-6 w-8 cursor-pointer appearance-none rounded border border-[var(--ops-border)] bg-transparent p-0"
+              disabled={disabled}
+              onChange={(event) => onPrimaryColorChange(normalizeHexColor(event.target.value))}
+              type="color"
+              value={primarySwatchColor}
+            />
           </div>
+          {!primaryIsValid ? (
+            <p className="mt-2 text-xs text-[var(--ops-danger)]">
+              Enter a valid HEX value like #6D5DFC.
+            </p>
+          ) : null}
         </div>
 
         <div>
@@ -101,7 +150,7 @@ export function BrandingColorPicker({
             <span
               aria-hidden="true"
               className="h-5 w-5 rounded-full border border-[var(--ops-border)]"
-              style={{ backgroundColor: accentColor }}
+              style={{ backgroundColor: accentSwatchColor }}
             />
             <input
               className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[var(--ops-text)] outline-none"
@@ -109,12 +158,28 @@ export function BrandingColorPicker({
               id="branding-accent-color"
               name="accent_color"
               onChange={(event) =>
-                onAccentColorChange(normalizeColorInput(event.target.value))
+                onAccentColorChange(normalizeHexColor(event.target.value))
+              }
+              onBlur={(event) =>
+                onAccentColorChange(normalizeHexColor(event.target.value))
               }
               required
               value={accentColor}
             />
+            <input
+              aria-label="Pick accent color"
+              className="h-6 w-8 cursor-pointer appearance-none rounded border border-[var(--ops-border)] bg-transparent p-0"
+              disabled={disabled}
+              onChange={(event) => onAccentColorChange(normalizeHexColor(event.target.value))}
+              type="color"
+              value={accentSwatchColor}
+            />
           </div>
+          {!accentIsValid ? (
+            <p className="mt-2 text-xs text-[var(--ops-danger)]">
+              Enter a valid HEX value like #0284C7.
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

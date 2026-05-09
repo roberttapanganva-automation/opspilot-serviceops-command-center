@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 import { getEffectiveRolePermission } from "@/lib/permissions/effective";
-import { canCreateOperationalRecords } from "@/lib/permissions/workspace";
+import {
+  canCreateOperationalRecords,
+  canDeleteOperationalRecords,
+} from "@/lib/permissions/workspace";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/tenant/getActiveWorkspace";
 import { createAppointmentSchema } from "@/lib/validation/appointments";
@@ -23,6 +26,10 @@ type AppointmentResponse = {
   status: "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
   title: string;
 };
+
+const deleteAppointmentsSchema = z.object({
+  ids: z.array(z.uuid()).min(1),
+});
 
 function jsonResponse<T>(body: ApiResponse<T>, status = 200) {
   return NextResponse.json(body, { status });
@@ -327,6 +334,128 @@ export async function POST(request: Request) {
           code: "BAD_REQUEST",
           message:
             "We could not read the appointment details. Please try again.",
+        },
+        ok: false,
+      },
+      400,
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return jsonResponse(
+      {
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Sign in to delete appointments.",
+        },
+        ok: false,
+      },
+      401,
+    );
+  }
+
+  const activeWorkspace = await getActiveWorkspace();
+
+  if (activeWorkspace.status !== "ready") {
+    return jsonResponse(
+      {
+        error: {
+          code: "NO_ACTIVE_WORKSPACE",
+          message:
+            activeWorkspace.error ??
+            "No active workspace is available for this account.",
+        },
+        ok: false,
+      },
+      getStatusForWorkspaceResult(activeWorkspace.status),
+    );
+  }
+
+  if (!canDeleteOperationalRecords(activeWorkspace.context.role)) {
+    return jsonResponse(
+      {
+        error: {
+          code: "APPOINTMENT_DELETE_FORBIDDEN",
+          message: "Your workspace role cannot delete appointments.",
+        },
+        ok: false,
+      },
+      403,
+    );
+  }
+
+  try {
+    const payload = deleteAppointmentsSchema.parse(await request.json());
+    const { data: appointments, error: appointmentError } = await supabase
+      .from("appointments")
+      .delete()
+      .in("id", payload.ids)
+      .eq("workspace_id", activeWorkspace.context.workspace.id)
+      .select("id,title")
+      .returns<{ id: string; title: string }[]>();
+
+    if (appointmentError) {
+      return jsonResponse(
+        {
+          error: {
+            code: "APPOINTMENTS_DELETE_FAILED",
+            message:
+              "We could not delete the selected appointments. Please try again.",
+            details: appointmentError.message,
+          },
+          ok: false,
+        },
+        500,
+      );
+    }
+
+    await supabase.from("audit_logs").insert({
+      action: "appointment.bulk_deleted",
+      actor_user_id: user.id,
+      entity_id: null,
+      entity_type: "appointment",
+      metadata: {
+        count: appointments?.length ?? 0,
+        ids: appointments?.map((appointment) => appointment.id) ?? [],
+      },
+      workspace_id: activeWorkspace.context.workspace.id,
+    });
+
+    return jsonResponse({
+      data: {
+        ids: appointments?.map((appointment) => appointment.id) ?? [],
+      },
+      ok: true,
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return jsonResponse(
+        {
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Select at least one valid appointment to delete.",
+            details: error.flatten().fieldErrors,
+          },
+          ok: false,
+        },
+        400,
+      );
+    }
+
+    return jsonResponse(
+      {
+        error: {
+          code: "BAD_REQUEST",
+          message:
+            "We could not read the appointment selection. Please try again.",
         },
         ok: false,
       },

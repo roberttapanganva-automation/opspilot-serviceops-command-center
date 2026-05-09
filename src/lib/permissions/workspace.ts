@@ -36,7 +36,7 @@ export function canEditOperationalRecords(role: WorkspaceRole | null) {
 }
 
 export function canDeleteOperationalRecords(role: WorkspaceRole | null) {
-  return role === "owner" || role === "admin";
+  return role === "owner" || role === "admin" || role === "manager";
 }
 
 export function canAccessOwnerConsole(role: WorkspaceRole | null) {

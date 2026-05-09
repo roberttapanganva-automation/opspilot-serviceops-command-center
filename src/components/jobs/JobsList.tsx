@@ -1,4 +1,6 @@
 import { Card } from "@/components/ui/Card";
+import { DateTimeCell, DateTimeHeader } from "@/components/ui/DateTimeCell";
+import { DeleteRecordButton } from "@/components/records/DeleteRecordButton";
 import { JobStatusBadge, type JobStatus } from "./JobStatusBadge";
 import { JobsEmptyState } from "./JobsEmptyState";
 import {
@@ -26,19 +28,9 @@ export type JobListItem = {
 
 type JobsListProps = {
   canCreateRecords: boolean;
+  canDeleteRecords: boolean;
   jobs: JobListItem[];
 };
-
-function formatDateTime(value: string | null) {
-  if (!value) {
-    return "Not scheduled";
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
 
 function formatCreatedDate(value: string) {
   return new Intl.DateTimeFormat("en", {
@@ -54,7 +46,11 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export function JobsList({ canCreateRecords, jobs }: JobsListProps) {
+export function JobsList({
+  canCreateRecords,
+  canDeleteRecords,
+  jobs,
+}: JobsListProps) {
   if (jobs.length === 0) {
     return <JobsEmptyState canCreateRecords={canCreateRecords} />;
   }
@@ -81,7 +77,7 @@ export function JobsList({ canCreateRecords, jobs }: JobsListProps) {
                 Status
               </th>
               <th className="px-5 py-3" scope="col">
-                Schedule
+                <DateTimeHeader label="Schedule" />
               </th>
               <th className="px-5 py-3" scope="col">
                 Location
@@ -95,6 +91,11 @@ export function JobsList({ canCreateRecords, jobs }: JobsListProps) {
               <th className="px-5 py-3" scope="col">
                 Created
               </th>
+              {canDeleteRecords ? (
+                <th className="px-5 py-3 text-right" scope="col">
+                  Action
+                </th>
+              ) : null}
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--ops-border)] bg-white">
@@ -113,7 +114,7 @@ export function JobsList({ canCreateRecords, jobs }: JobsListProps) {
                   <JobStatusBadge status={job.status} />
                 </td>
                 <td className="px-5 py-4 text-[var(--ops-text-soft)]">
-                  {formatDateTime(job.scheduled_start)}
+                  <DateTimeCell value={job.scheduled_start} />
                 </td>
                 <td className="px-5 py-4 text-[var(--ops-text-soft)]">
                   {job.location ?? "Not set"}
@@ -127,6 +128,14 @@ export function JobsList({ canCreateRecords, jobs }: JobsListProps) {
                 <td className="px-5 py-4 text-[var(--ops-text-soft)]">
                   {formatCreatedDate(job.created_at)}
                 </td>
+                {canDeleteRecords ? (
+                  <td className="px-5 py-4">
+                    <DeleteRecordButton
+                      endpoint={`/api/jobs/${job.id}`}
+                      label={`Delete job ${job.title}`}
+                    />
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>
@@ -147,6 +156,14 @@ export function JobsList({ canCreateRecords, jobs }: JobsListProps) {
               </div>
               <JobStatusBadge status={job.status} />
             </div>
+            {canDeleteRecords ? (
+              <div className="mt-4 flex justify-end">
+                <DeleteRecordButton
+                  endpoint={`/api/jobs/${job.id}`}
+                  label={`Delete job ${job.title}`}
+                />
+              </div>
+            ) : null}
 
             <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
               <div>
@@ -154,7 +171,7 @@ export function JobsList({ canCreateRecords, jobs }: JobsListProps) {
                   Schedule
                 </p>
                 <p className="mt-1 text-[var(--ops-text-soft)]">
-                  {formatDateTime(job.scheduled_start)}
+                  <DateTimeCell value={job.scheduled_start} />
                 </p>
               </div>
               <div>

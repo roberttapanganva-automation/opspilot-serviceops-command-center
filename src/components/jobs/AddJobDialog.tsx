@@ -4,6 +4,11 @@ import { BriefcaseIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import {
+  DateTimeRangePicker,
+  getDateTimeRangeError,
+  type DateTimeRangeValue,
+} from "@/components/ui/DateTimeRangePicker";
 import type { ApiResponse } from "@/types/api";
 
 type AddJobDialogProps = {
@@ -32,6 +37,11 @@ export function AddJobDialog({
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState<DateTimeRangeValue>({
+    end: null,
+    start: null,
+  });
 
   function closeDialog() {
     if (isSubmitting) {
@@ -39,17 +49,25 @@ export function AddJobDialog({
     }
 
     setError(null);
+    setScheduleError(null);
     setIsOpen(false);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setScheduleError(null);
+
+    const nextScheduleError = getDateTimeRangeError(schedule, {});
+
+    if (nextScheduleError) {
+      setScheduleError(nextScheduleError);
+      return;
+    }
+
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
-    const scheduledStart = String(formData.get("scheduled_start") ?? "");
-    const scheduledEnd = String(formData.get("scheduled_end") ?? "");
     const estimatedValue = String(formData.get("estimated_value") ?? "");
 
     const payload = {
@@ -60,12 +78,8 @@ export function AddJobDialog({
       location: String(formData.get("location") ?? ""),
       notes: String(formData.get("notes") ?? ""),
       payment_status: String(formData.get("payment_status") ?? "unpaid"),
-      scheduled_end: scheduledEnd
-        ? new Date(scheduledEnd).toISOString()
-        : undefined,
-      scheduled_start: scheduledStart
-        ? new Date(scheduledStart).toISOString()
-        : undefined,
+      scheduled_end: schedule.end ?? undefined,
+      scheduled_start: schedule.start ?? undefined,
       service_type: String(formData.get("service_type") ?? ""),
       status: String(formData.get("status") ?? "scheduled"),
       title: String(formData.get("title") ?? ""),
@@ -88,6 +102,7 @@ export function AddJobDialog({
       }
 
       formRef.current?.reset();
+      setSchedule({ end: null, start: null });
       setIsOpen(false);
       router.refresh();
     } catch (caughtError) {
@@ -250,35 +265,13 @@ export function AddJobDialog({
                   />
                 </div>
 
-                <div>
-                  <label
-                    className="text-sm font-medium text-[var(--ops-text)]"
-                    htmlFor="job-scheduled-start"
-                  >
-                    Scheduled start
-                  </label>
-                  <input
-                    className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+                <div className="sm:col-span-2">
+                  <DateTimeRangePicker
                     disabled={isSubmitting}
-                    id="job-scheduled-start"
-                    name="scheduled_start"
-                    type="datetime-local"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    className="text-sm font-medium text-[var(--ops-text)]"
-                    htmlFor="job-scheduled-end"
-                  >
-                    Scheduled end
-                  </label>
-                  <input
-                    className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-                    disabled={isSubmitting}
-                    id="job-scheduled-end"
-                    name="scheduled_end"
-                    type="datetime-local"
+                    error={scheduleError}
+                    label="Job schedule"
+                    onChange={setSchedule}
+                    value={schedule}
                   />
                 </div>
 

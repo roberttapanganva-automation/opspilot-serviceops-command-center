@@ -4,6 +4,11 @@ import { CalendarPlusIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import {
+  DateTimeRangePicker,
+  getDateTimeRangeError,
+  type DateTimeRangeValue,
+} from "@/components/ui/DateTimeRangePicker";
 import type { ApiResponse } from "@/types/api";
 
 type AddAppointmentDialogProps = {
@@ -32,6 +37,11 @@ export function AddAppointmentDialog({
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState<DateTimeRangeValue>({
+    end: null,
+    start: null,
+  });
 
   function closeDialog() {
     if (isSubmitting) {
@@ -39,26 +49,36 @@ export function AddAppointmentDialog({
     }
 
     setError(null);
+    setScheduleError(null);
     setIsOpen(false);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setScheduleError(null);
+
+    const nextScheduleError = getDateTimeRangeError(schedule, {
+      requiredStart: true,
+    });
+
+    if (nextScheduleError) {
+      setScheduleError(nextScheduleError);
+      return;
+    }
+
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
-    const startsAt = String(formData.get("starts_at") ?? "");
-    const endsAt = String(formData.get("ends_at") ?? "");
 
     const payload = {
       client_email: String(formData.get("client_email") ?? ""),
       client_name: String(formData.get("client_name") ?? ""),
       client_phone: String(formData.get("client_phone") ?? ""),
-      ends_at: endsAt ? new Date(endsAt).toISOString() : undefined,
+      ends_at: schedule.end ?? undefined,
       location: String(formData.get("location") ?? ""),
       notes: String(formData.get("notes") ?? ""),
-      starts_at: startsAt ? new Date(startsAt).toISOString() : "",
+      starts_at: schedule.start ?? "",
       status: String(formData.get("status") ?? "pending"),
       title: String(formData.get("title") ?? ""),
     };
@@ -82,6 +102,7 @@ export function AddAppointmentDialog({
       }
 
       formRef.current?.reset();
+      setSchedule({ end: null, start: null });
       setIsOpen(false);
       router.refresh();
     } catch (caughtError) {
@@ -254,36 +275,14 @@ export function AddAppointmentDialog({
                   </select>
                 </div>
 
-                <div>
-                  <label
-                    className="text-sm font-medium text-[var(--ops-text)]"
-                    htmlFor="appointment-starts-at"
-                  >
-                    Starts at <span className="text-[var(--ops-danger)]">*</span>
-                  </label>
-                  <input
-                    className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+                <div className="sm:col-span-2">
+                  <DateTimeRangePicker
                     disabled={isSubmitting}
-                    id="appointment-starts-at"
-                    name="starts_at"
-                    required
-                    type="datetime-local"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    className="text-sm font-medium text-[var(--ops-text)]"
-                    htmlFor="appointment-ends-at"
-                  >
-                    Ends at
-                  </label>
-                  <input
-                    className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-                    disabled={isSubmitting}
-                    id="appointment-ends-at"
-                    name="ends_at"
-                    type="datetime-local"
+                    error={scheduleError}
+                    label="Appointment date"
+                    onChange={setSchedule}
+                    requiredStart
+                    value={schedule}
                   />
                 </div>
 

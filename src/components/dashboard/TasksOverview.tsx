@@ -10,6 +10,17 @@ type TasksOverviewProps = {
   summary: DashboardTaskSummary;
 };
 
+function getTaskStatusLabel(status: DashboardTaskSummary["recentTasks"][number]["status"]) {
+  const labels = {
+    cancelled: "Cancelled",
+    done: "Completed",
+    in_progress: "Working",
+    todo: "To do",
+  } as const;
+
+  return labels[status];
+}
+
 export function TasksOverview({ summary }: TasksOverviewProps) {
   return (
     <Card className="p-5 sm:p-6">
@@ -83,10 +94,12 @@ export function TasksOverview({ summary }: TasksOverviewProps) {
                         ? "success"
                         : task.status === "cancelled"
                           ? "danger"
+                          : task.status === "in_progress"
+                            ? "info"
                           : "default"
                     }
                   >
-                    {task.status.replace("_", " ")}
+                    {getTaskStatusLabel(task.status)}
                   </Badge>
                 </div>
                 <p className="mt-2 text-sm text-[var(--ops-text-muted)]">

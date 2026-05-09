@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { getAssignableRoles } from "@/lib/permissions/workspace";
 import type { ApiResponse } from "@/types/api";
 import type { WorkspaceInvitation } from "@/types/domain";
@@ -14,6 +15,7 @@ export function InviteMemberForm() {
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expiresDate, setExpiresDate] = useState<Date | undefined>(undefined);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -23,8 +25,19 @@ export function InviteMemberForm() {
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
+    const expiresAt = expiresDate
+      ? new Date(
+          expiresDate.getFullYear(),
+          expiresDate.getMonth(),
+          expiresDate.getDate(),
+          23,
+          59,
+          59,
+          999,
+        ).toISOString()
+      : "";
     const payload = {
-      expires_at: String(formData.get("expires_at") ?? ""),
+      expires_at: expiresAt,
       invited_email: String(formData.get("invited_email") ?? ""),
       role: String(formData.get("role") ?? "staff"),
     };
@@ -43,6 +56,7 @@ export function InviteMemberForm() {
       }
 
       event.currentTarget.reset();
+      setExpiresDate(undefined);
       setSuccess("Pending invite created. Copy the invite link and send it manually for now.");
       setInviteLink(`${window.location.origin}/invite/${result.data.id}`);
       router.refresh();
@@ -115,10 +129,18 @@ export function InviteMemberForm() {
             Expires
           </label>
           <input
-            className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
             id="invite-expires"
             name="expires_at"
-            type="datetime-local"
+            readOnly
+            type="hidden"
+            value={expiresDate ? expiresDate.toISOString() : ""}
+          />
+          <DatePicker
+            aria-label="Invite expiry date"
+            clearable
+            disabled={isSubmitting}
+            onChange={setExpiresDate}
+            value={expiresDate}
           />
         </div>
 

@@ -26,6 +26,10 @@ export function normalizeHexColor(value: string) {
   return trimmed;
 }
 
+export function validateHexColor(value: string) {
+  return /^#[0-9A-F]{6}$/.test(normalizeHexColor(value));
+}
+
 export const hexColorSchema = z
   .string()
   .trim()

@@ -1,4 +1,4 @@
-import { ArrowRightIcon, CheckSquareIcon } from "@phosphor-icons/react/ssr";
+import { CheckSquareIcon } from "@phosphor-icons/react/ssr";
 import { AddTaskDialog } from "./AddTaskDialog";
 
 type TasksPageHeaderProps = {
@@ -29,10 +29,6 @@ export function TasksPageHeader({ canCreateRecords }: TasksPageHeaderProps) {
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2 rounded-lg border border-[var(--ops-border)] bg-[var(--ops-card-soft)] px-3 py-2 text-sm text-[var(--ops-text-soft)]">
-            <span>Dynamic overdue status is calculated in the UI</span>
-            <ArrowRightIcon aria-hidden="true" size={18} weight="regular" />
-          </div>
           {canCreateRecords ? <AddTaskDialog /> : null}
         </div>
       </div>

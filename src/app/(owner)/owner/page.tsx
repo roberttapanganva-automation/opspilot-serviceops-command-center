@@ -1,7 +1,8 @@
 import Link from "next/link";
 import {
+  CheckCircleIcon,
   ClockCounterClockwiseIcon,
-  PaintBrushIcon,
+  GearSixIcon,
   ShieldCheckIcon,
   SlidersHorizontalIcon,
   UserPlusIcon,
@@ -33,6 +34,46 @@ export default async function OwnerOverviewPage() {
   if (!overview) {
     return null;
   }
+
+  const setupItems = [
+    {
+      key: "branding",
+      label: "Branding",
+      ok: overview.brandingFullyConfigured,
+      doneLabel: "Configured",
+      pendingLabel: "Needs setup",
+    },
+    {
+      key: "modules",
+      label: "Modules",
+      ok: overview.enabledModuleCount > 0,
+      doneLabel: "Enabled",
+      pendingLabel: "Needs setup",
+    },
+    {
+      key: "pipeline",
+      label: "Pipeline",
+      ok: overview.pipelineGroupCount > 0 && overview.pipelineStageCount > 0,
+      doneLabel: "Ready",
+      pendingLabel: "Needs setup",
+    },
+    {
+      key: "access-rules",
+      label: "Access Rules",
+      ok: overview.accessRulesConfigured,
+      doneLabel: "Active",
+      pendingLabel: "Needs setup",
+    },
+    {
+      key: "team",
+      label: "Team",
+      ok: overview.teamReady,
+      doneLabel: "Ready",
+      pendingLabel: "Needs invite",
+    },
+  ] as const;
+  const setupCompleted = setupItems.filter((item) => item.ok).length;
+  const setupProgress = Math.round((setupCompleted / setupItems.length) * 100);
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -109,7 +150,7 @@ export default async function OwnerOverviewPage() {
                     {log.action}
                   </p>
                   <p className="mt-1 text-sm text-[var(--ops-text-soft)]">
-                    {log.entity_type} · {formatDate(log.created_at)}
+                    {log.entity_type} - {formatDate(log.created_at)}
                   </p>
                 </div>
               ))}
@@ -120,21 +161,49 @@ export default async function OwnerOverviewPage() {
         <Card className="p-5 sm:p-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--ops-primary-soft)] text-[var(--ops-primary-dark)]">
-              <PaintBrushIcon aria-hidden="true" size={22} weight="duotone" />
+              <GearSixIcon aria-hidden="true" size={22} weight="duotone" />
             </div>
             <div>
               <h2 className="font-semibold text-[var(--ops-text)]">
-                Branding Status
+                Workspace Setup Health
               </h2>
               <p className="text-sm text-[var(--ops-text-soft)]">
-                Owner-managed workspace identity.
+                Readiness for team operations.
               </p>
             </div>
           </div>
-          <div className="mt-5">
-            <Badge variant={overview.brandingConfigured ? "success" : "warning"}>
-              {overview.brandingConfigured ? "Configured" : "Default branding"}
-            </Badge>
+          <div className="mt-5 space-y-4">
+            <div>
+              <p className="text-sm font-medium text-[var(--ops-text)]">
+                {setupCompleted}/{setupItems.length} complete
+              </p>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--ops-card-soft)]">
+                <div
+                  className="h-full rounded-full bg-[linear-gradient(90deg,var(--workspace-primary),var(--workspace-accent))] transition-all"
+                  style={{ width: `${setupProgress}%` }}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              {setupItems.map((item) => (
+                <div
+                  className="flex items-center justify-between gap-3 rounded-lg border border-[var(--ops-border)] bg-[var(--ops-card-soft)] px-3 py-2"
+                  key={item.key}
+                >
+                  <p className="text-sm text-[var(--ops-text)]">{item.label}</p>
+                  <Badge variant={item.ok ? "success" : "warning"}>
+                    {item.ok ? item.doneLabel : item.pendingLabel}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+            <Link
+              className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--ops-primary-dark)] hover:text-[var(--workspace-accent)]"
+              href="/owner/branding"
+            >
+              <CheckCircleIcon aria-hidden="true" size={16} weight="duotone" />
+              Continue setup
+            </Link>
           </div>
         </Card>
       </section>

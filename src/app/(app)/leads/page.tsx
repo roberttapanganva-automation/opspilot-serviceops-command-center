@@ -1,6 +1,9 @@
 import { getLeadsForActiveWorkspace } from "@/lib/leads/queries";
 import { getEffectiveRolePermission } from "@/lib/permissions/effective";
-import { canCreateOperationalRecords } from "@/lib/permissions/workspace";
+import {
+  canCreateOperationalRecords,
+  canDeleteOperationalRecords,
+} from "@/lib/permissions/workspace";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/tenant/getActiveWorkspace";
 import { LeadsList } from "@/components/leads/LeadsList";
@@ -23,12 +26,19 @@ export default async function LeadsPage() {
     activeWorkspace.status === "ready" &&
     canCreateOperationalRecords(activeWorkspace.context.role) &&
     rolePermission?.can_create_leads !== false;
+  const canDeleteRecords =
+    activeWorkspace.status === "ready" &&
+    canDeleteOperationalRecords(activeWorkspace.context.role);
 
   return (
     <div className="space-y-5 sm:space-y-6">
       <LeadsPageHeader canCreateRecords={canCreateRecords} />
       <LeadsToolbar />
-      <LeadsList canCreateRecords={canCreateRecords} leads={leads} />
+      <LeadsList
+        canCreateRecords={canCreateRecords}
+        canDeleteRecords={canDeleteRecords}
+        leads={leads}
+      />
     </div>
   );
 }

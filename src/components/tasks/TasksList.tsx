@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { DateTimeCell, DateTimeHeader } from "@/components/ui/DateTimeCell";
 import { TaskActions } from "./TaskActions";
 import { TaskPriorityBadge, type TaskPriority } from "./TaskPriorityBadge";
 import { TaskStatusBadge, type TaskStatus } from "./TaskStatusBadge";
@@ -22,19 +23,9 @@ export type TaskListItem = {
 
 type TasksListProps = {
   canCreateRecords: boolean;
+  canDeleteRecords: boolean;
   tasks: TaskListItem[];
 };
-
-function formatDateTime(value: string | null) {
-  if (!value) {
-    return "No due date";
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
 
 function formatCreatedDate(value: string) {
   return new Intl.DateTimeFormat("en", {
@@ -58,7 +49,11 @@ function formatRelatedType(value: TaskRelatedType) {
   return value[0].toUpperCase() + value.slice(1);
 }
 
-export function TasksList({ canCreateRecords, tasks }: TasksListProps) {
+export function TasksList({
+  canCreateRecords,
+  canDeleteRecords,
+  tasks,
+}: TasksListProps) {
   if (tasks.length === 0) {
     return <TasksEmptyState canCreateRecords={canCreateRecords} />;
   }
@@ -89,7 +84,7 @@ export function TasksList({ canCreateRecords, tasks }: TasksListProps) {
                 Priority
               </th>
               <th className="px-5 py-3" scope="col">
-                Due
+                <DateTimeHeader label="Due" />
               </th>
               <th className="px-5 py-3" scope="col">
                 Related
@@ -126,7 +121,7 @@ export function TasksList({ canCreateRecords, tasks }: TasksListProps) {
                   </td>
                   <td className="px-5 py-4 text-[var(--ops-text-soft)]">
                     <div className="space-y-1">
-                      <p>{formatDateTime(task.due_at)}</p>
+                      <DateTimeCell emptyLabel="No due date" value={task.due_at} />
                       {overdue ? <Badge variant="danger">Overdue</Badge> : null}
                     </div>
                   </td>
@@ -137,17 +132,11 @@ export function TasksList({ canCreateRecords, tasks }: TasksListProps) {
                     {formatCreatedDate(task.created_at)}
                   </td>
                   <td className="px-5 py-4">
-                    {canCreateRecords && task.status !== "done" ? (
-                      <TaskActions taskId={task.id} />
-                    ) : task.status === "done" ? (
-                      <span className="text-sm text-[var(--ops-text-muted)]">
-                        Completed
-                      </span>
-                    ) : (
-                      <span className="text-sm text-[var(--ops-text-muted)]">
-                        Read only
-                      </span>
-                    )}
+                    <TaskActions
+                      canDeleteRecords={canDeleteRecords}
+                      status={task.status}
+                      taskId={task.id}
+                    />
                   </td>
                 </tr>
               );
@@ -190,7 +179,7 @@ export function TasksList({ canCreateRecords, tasks }: TasksListProps) {
                     Due
                   </p>
                   <div className="mt-1 space-y-1 text-[var(--ops-text-soft)]">
-                    <p>{formatDateTime(task.due_at)}</p>
+                    <DateTimeCell emptyLabel="No due date" value={task.due_at} />
                     {overdue ? <Badge variant="danger">Overdue</Badge> : null}
                   </div>
                 </div>
@@ -212,11 +201,13 @@ export function TasksList({ canCreateRecords, tasks }: TasksListProps) {
                 </div>
               </div>
 
-              {canCreateRecords && task.status !== "done" ? (
-                <div className="mt-4">
-                  <TaskActions taskId={task.id} />
-                </div>
-              ) : null}
+              <div className="mt-4">
+                <TaskActions
+                  canDeleteRecords={canDeleteRecords}
+                  status={task.status}
+                  taskId={task.id}
+                />
+              </div>
             </article>
           );
         })}

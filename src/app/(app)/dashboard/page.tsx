@@ -76,8 +76,8 @@ export default async function DashboardPage() {
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
         <PipelineOverview
-          jobStages={overview.pipeline.jobStages}
-          leadStages={overview.pipeline.leadStages}
+          currencyCode={overview.workspace.currencyCode}
+          summary={overview.pipeline}
         />
         <TodayAgenda items={overview.agendaItems} />
       </section>

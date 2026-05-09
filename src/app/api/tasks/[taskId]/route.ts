@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { z, ZodError } from "zod";
-import { canEditOperationalRecords } from "@/lib/permissions/workspace";
+import {
+  canDeleteOperationalRecords,
+  canViewWorkspace,
+} from "@/lib/permissions/workspace";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/tenant/getActiveWorkspace";
 import { updateTaskStatusSchema } from "@/lib/validation/tasks";
@@ -90,7 +93,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
-  if (!canEditOperationalRecords(activeWorkspace.context.role)) {
+  if (!canViewWorkspace(activeWorkspace.context.role)) {
     return jsonResponse(
       {
         error: {
@@ -176,4 +179,109 @@ export async function PATCH(request: Request, context: RouteContext) {
       400,
     );
   }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const { taskId } = await context.params;
+  const taskIdResult = z.uuid().safeParse(taskId);
+
+  if (!taskIdResult.success) {
+    return jsonResponse(
+      {
+        error: {
+          code: "INVALID_TASK_ID",
+          message: "The selected task is not valid.",
+        },
+        ok: false,
+      },
+      400,
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return jsonResponse(
+      {
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Sign in to delete tasks.",
+        },
+        ok: false,
+      },
+      401,
+    );
+  }
+
+  const activeWorkspace = await getActiveWorkspace();
+
+  if (activeWorkspace.status !== "ready") {
+    return jsonResponse(
+      {
+        error: {
+          code: "NO_ACTIVE_WORKSPACE",
+          message:
+            activeWorkspace.error ??
+            "No active workspace is available for this account.",
+        },
+        ok: false,
+      },
+      getStatusForWorkspaceResult(activeWorkspace.status),
+    );
+  }
+
+  if (!canDeleteOperationalRecords(activeWorkspace.context.role)) {
+    return jsonResponse(
+      {
+        error: {
+          code: "TASK_DELETE_FORBIDDEN",
+          message: "Your workspace role cannot delete tasks.",
+        },
+        ok: false,
+      },
+      403,
+    );
+  }
+
+  const { data: task, error: taskError } = await supabase
+    .from("tasks")
+    .delete()
+    .eq("id", taskIdResult.data)
+    .eq("workspace_id", activeWorkspace.context.workspace.id)
+    .select("id,title,status,completed_at")
+    .single<TaskResponse>();
+
+  if (taskError) {
+    return jsonResponse(
+      {
+        error: {
+          code: "TASK_DELETE_FAILED",
+          message: "We could not delete the task. Please try again.",
+          details: taskError.message,
+        },
+        ok: false,
+      },
+      500,
+    );
+  }
+
+  await supabase.from("audit_logs").insert({
+    action: "task.deleted",
+    actor_user_id: user.id,
+    entity_id: task.id,
+    entity_type: "task",
+    metadata: {
+      title: task.title,
+    },
+    workspace_id: activeWorkspace.context.workspace.id,
+  });
+
+  return jsonResponse({
+    data: task,
+    ok: true,
+  });
 }

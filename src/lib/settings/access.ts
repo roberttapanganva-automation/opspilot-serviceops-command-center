@@ -121,7 +121,9 @@ export async function getSettingsAccessContext(): Promise<SettingsAccessResult> 
   return {
     activeWorkspace: activeWorkspace.context,
     canManageBranding:
-      member.role === "owner" || rolePermissions?.can_edit_branding === true,
+      member.role === "owner" ||
+      member.role === "admin" ||
+      rolePermissions?.can_edit_branding === true,
     canManageModules:
       member.role === "owner" || rolePermissions?.can_manage_modules === true,
     canManagePipeline:

@@ -7,6 +7,10 @@ import { useThemePreference } from "@/components/theme/ThemeProvider";
 import type { ApiResponse } from "@/types/api";
 import type { ThemeMode, UserThemePreference } from "@/types/domain";
 
+type ThemePreferenceUpdateResponse = UserThemePreference & {
+  theme_mode: ThemeMode;
+};
+
 const options: Array<{
   label: string;
   value: ThemeMode;
@@ -63,7 +67,8 @@ export function ThemeModeButton() {
         headers: { "Content-Type": "application/json" },
         method: "PATCH",
       });
-      const result = (await response.json()) as ApiResponse<UserThemePreference>;
+      const result =
+        (await response.json()) as ApiResponse<ThemePreferenceUpdateResponse>;
 
       if (!response.ok || !result.ok) {
         setUserThemeMode(previousMode);
@@ -71,7 +76,7 @@ export function ThemeModeButton() {
         return;
       }
 
-      setUserThemeMode(result.data.userThemeMode);
+      setUserThemeMode(result.data.theme_mode);
       setIsOpen(false);
       router.refresh();
     } catch (caughtError) {

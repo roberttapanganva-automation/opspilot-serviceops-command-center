@@ -7,6 +7,7 @@ import { BrandingColorPicker } from "@/components/owner/branding/BrandingColorPi
 import { BrandingPreviewCard } from "@/components/owner/branding/BrandingPreviewCard";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { normalizeHexColor, validateHexColor } from "@/lib/validation/branding";
 import type { ApiResponse } from "@/types/api";
 import type { ThemeMode, WorkspaceBrandingSettings } from "@/types/domain";
 
@@ -43,15 +44,26 @@ export function OwnerBrandingForm({
     setError(null);
     setSuccess(null);
     setIsSubmitting(true);
+    const normalizedPrimaryColor = normalizeHexColor(primaryColor);
+    const normalizedAccentColor = normalizeHexColor(accentColor);
+
+    if (
+      !validateHexColor(normalizedPrimaryColor) ||
+      !validateHexColor(normalizedAccentColor)
+    ) {
+      setError("Use valid HEX colors like #6D5DFC.");
+      setIsSubmitting(false);
+      return;
+    }
 
     const payload = {
-      accent_color: accentColor,
+      accent_color: normalizedAccentColor,
       app_name: appName,
       icon_url: iconUrl ?? "",
       login_heading: loginHeading,
       login_subtext: loginSubtext,
       logo_url: logoUrl ?? "",
-      primary_color: primaryColor,
+      primary_color: normalizedPrimaryColor,
       theme_mode: themeMode,
     };
 
@@ -68,6 +80,8 @@ export function OwnerBrandingForm({
         return;
       }
 
+      setPrimaryColor(normalizedPrimaryColor);
+      setAccentColor(normalizedAccentColor);
       setSuccess("Workspace branding saved.");
       router.refresh();
     } catch (caughtError) {
@@ -123,6 +137,7 @@ export function OwnerBrandingForm({
             </label>
             <input
               className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-[var(--ops-card)] px-3 text-sm text-[var(--ops-text)] outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+              disabled={isSubmitting}
               id="owner-branding-app-name"
               onChange={(event) => setAppName(event.target.value)}
               required
@@ -139,6 +154,7 @@ export function OwnerBrandingForm({
             </label>
             <select
               className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-[var(--ops-card)] px-3 text-sm text-[var(--ops-text)] outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+              disabled={isSubmitting}
               id="owner-branding-theme"
               onChange={(event) => setThemeMode(event.target.value as ThemeMode)}
               value={themeMode}
@@ -168,6 +184,7 @@ export function OwnerBrandingForm({
             </label>
             <input
               className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-[var(--ops-card)] px-3 text-sm text-[var(--ops-text)] outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+              disabled={isSubmitting}
               id="owner-branding-login-heading"
               onChange={(event) => setLoginHeading(event.target.value)}
               value={loginHeading}
@@ -182,6 +199,7 @@ export function OwnerBrandingForm({
             </label>
             <input
               className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-[var(--ops-card)] px-3 text-sm text-[var(--ops-text)] outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+              disabled={isSubmitting}
               id="owner-branding-login-subtext"
               onChange={(event) => setLoginSubtext(event.target.value)}
               value={loginSubtext}

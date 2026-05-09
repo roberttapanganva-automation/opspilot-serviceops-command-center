@@ -4,6 +4,7 @@ import { XIcon, PlusIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
 import type { ApiResponse } from "@/types/api";
 
 type AddLeadDialogProps = {
@@ -32,6 +33,9 @@ export function AddLeadDialog({
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextFollowUpDate, setNextFollowUpDate] = useState<Date | undefined>(
+    undefined,
+  );
 
   function closeDialog() {
     if (isSubmitting) {
@@ -39,6 +43,7 @@ export function AddLeadDialog({
     }
 
     setError(null);
+    setNextFollowUpDate(undefined);
     setIsOpen(false);
   }
 
@@ -48,8 +53,15 @@ export function AddLeadDialog({
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
-    const nextFollowUp = String(formData.get("next_follow_up_at") ?? "");
+    const nextFollowUpDateValue = nextFollowUpDate
+      ? `${nextFollowUpDate.getFullYear()}-${String(nextFollowUpDate.getMonth() + 1).padStart(2, "0")}-${String(nextFollowUpDate.getDate()).padStart(2, "0")}`
+      : "";
+    const nextFollowUpTime = String(formData.get("next_follow_up_time") ?? "");
     const estimatedValue = String(formData.get("estimated_value") ?? "");
+    const nextFollowUp =
+      nextFollowUpDateValue && nextFollowUpTime
+        ? `${nextFollowUpDateValue}T${nextFollowUpTime}`
+        : "";
 
     const payload = {
       client_email: String(formData.get("client_email") ?? ""),
@@ -83,6 +95,7 @@ export function AddLeadDialog({
       }
 
       formRef.current?.reset();
+      setNextFollowUpDate(undefined);
       setIsOpen(false);
       router.refresh();
     } catch (caughtError) {
@@ -279,17 +292,55 @@ export function AddLeadDialog({
                 <div className="sm:col-span-2">
                   <label
                     className="text-sm font-medium text-[var(--ops-text)]"
-                    htmlFor="lead-next-follow-up"
+                    htmlFor="lead-next-follow-up-date"
                   >
                     Next follow-up
                   </label>
-                  <input
-                    className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-                    disabled={isSubmitting}
-                    id="lead-next-follow-up"
-                    name="next_follow_up_at"
-                    type="datetime-local"
-                  />
+                  <div className="mt-2 grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px]">
+                    <div>
+                      <label
+                        className="text-[11px] font-semibold uppercase tracking-normal text-[var(--ops-text-muted)]"
+                        htmlFor="lead-next-follow-up-date-hidden"
+                      >
+                        Date
+                      </label>
+                      <input
+                        id="lead-next-follow-up-date-hidden"
+                        name="next_follow_up_date"
+                        readOnly
+                        type="hidden"
+                        value={
+                          nextFollowUpDate
+                            ? `${nextFollowUpDate.getFullYear()}-${String(nextFollowUpDate.getMonth() + 1).padStart(2, "0")}-${String(nextFollowUpDate.getDate()).padStart(2, "0")}`
+                            : ""
+                        }
+                      />
+                      <DatePicker
+                        aria-label="Next follow-up date"
+                        clearable
+                        disabled={isSubmitting}
+                        onChange={setNextFollowUpDate}
+                        showTodayAction
+                        value={nextFollowUpDate}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className="text-[11px] font-semibold uppercase tracking-normal text-[var(--ops-text-muted)]"
+                        htmlFor="lead-next-follow-up-time"
+                      >
+                        Time
+                      </label>
+                      <input
+                        className="mt-1 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+                        disabled={isSubmitting}
+                        id="lead-next-follow-up-time"
+                        name="next_follow_up_time"
+                        step="900"
+                        type="time"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 

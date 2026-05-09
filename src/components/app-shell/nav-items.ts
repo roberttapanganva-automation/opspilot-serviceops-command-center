@@ -2,6 +2,7 @@ import {
   BriefcaseIcon,
   CalendarBlankIcon,
   CheckSquareIcon,
+  RowsIcon,
   GearSixIcon,
   CrownIcon,
   RobotIcon,
@@ -41,6 +42,11 @@ const navItems = [
     moduleKey: "calendar_enabled",
   },
   {
+    href: "/pipelines",
+    label: "Pipelines",
+    Icon: RowsIcon,
+  },
+  {
     href: "/automations",
     label: "Automations",
     Icon: RobotIcon,
@@ -64,8 +70,9 @@ export function getVisibleNavItems(workspaceContext: ActiveWorkspaceContext) {
   return navItems.filter((item) => {
     if ("settingsOnly" in item && item.settingsOnly) {
       return (
-        canManageWorkspaceSettings(workspaceContext.role) ||
-        workspaceContext.rolePermissions?.can_view_settings === true
+        workspaceContext.role !== "owner" &&
+        (canManageWorkspaceSettings(workspaceContext.role) ||
+          workspaceContext.rolePermissions?.can_view_settings === true)
       );
     }
 

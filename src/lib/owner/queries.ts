@@ -1,9 +1,11 @@
 import { getAssignableRoles } from "@/lib/permissions/workspace";
 import { getOwnerAccessContext } from "@/lib/owner/access";
+import { isPipelineSchemaPendingMessage } from "@/lib/pipelines/queries";
 import type {
   AssignableWorkspaceRole,
   OwnerAuditLog,
   OwnerConsoleOverview,
+  PipelineGroup,
   PipelineStage,
   WorkspaceBrandingSettings,
   WorkspaceInvitation,
@@ -261,19 +263,46 @@ export async function getOwnerWorkspaceSettings(): Promise<WorkspaceSettingsData
     return null;
   }
 
-  const { data: pipelineStages, error: pipelineStagesError } =
-    await access.supabase
-      .from("pipeline_stages")
+  const [
+    { data: pipelineGroups, error: pipelineGroupsError },
+    { data: pipelineStages, error: pipelineStagesError },
+  ] = await Promise.all([
+    access.supabase
+      .from("pipeline_groups")
       .select(
-        "id,workspace_id,entity_type,name,color,order_index,is_closed,is_won,is_lost,created_at,updated_at",
+        "id,workspace_id,name,description,entity_type,order_index,is_default,created_by,updated_by,created_at,updated_at",
       )
       .eq("workspace_id", access.activeWorkspace.workspace.id)
       .order("entity_type", { ascending: true })
       .order("order_index", { ascending: true })
-      .returns<PipelineStage[]>();
+      .order("created_at", { ascending: true })
+      .returns<PipelineGroup[]>(),
+    access.supabase
+      .from("pipeline_stages")
+      .select(
+        "id,workspace_id,pipeline_group_id,entity_type,name,color,order_index,is_closed,is_won,is_lost,created_at,updated_at",
+      )
+      .eq("workspace_id", access.activeWorkspace.workspace.id)
+      .order("entity_type", { ascending: true })
+      .order("order_index", { ascending: true })
+      .returns<PipelineStage[]>(),
+  ]);
 
-  if (pipelineStagesError) {
-    throw new Error(pipelineStagesError.message);
+  const isPipelineSchemaPending =
+    isPipelineSchemaPendingMessage(pipelineGroupsError?.message) ||
+    isPipelineSchemaPendingMessage(pipelineStagesError?.message);
+
+  if ((pipelineGroupsError || pipelineStagesError) && !isPipelineSchemaPending) {
+    throw new Error(
+      pipelineGroupsError?.message ?? pipelineStagesError?.message,
+    );
+  }
+
+  if (isPipelineSchemaPending) {
+    console.warn("Owner workspace settings loaded without pipeline metadata", {
+      pipelineGroupsError: pipelineGroupsError?.message ?? null,
+      pipelineStagesError: pipelineStagesError?.message ?? null,
+    });
   }
 
   return {
@@ -282,11 +311,14 @@ export async function getOwnerWorkspaceSettings(): Promise<WorkspaceSettingsData
     canManageModules: true,
     canManagePipeline: true,
     canManageSettings: true,
+    canViewMemberVisibility: true,
     canViewSettings: true,
     currentUserRole: access.activeWorkspace.role,
     modules: access.activeWorkspace.modules as WorkspaceModuleSettings | null,
-    pipelineStages: pipelineStages ?? [],
+    pipelineGroups: isPipelineSchemaPending ? [] : (pipelineGroups ?? []),
+    pipelineStages: isPipelineSchemaPending ? [] : (pipelineStages ?? []),
     rolePermissions: null,
+    teamMembers: [],
     workspace: access.activeWorkspace.workspace,
   };
 }
@@ -298,13 +330,38 @@ export async function getOwnerConsoleOverview(): Promise<OwnerConsoleOverview | 
     return null;
   }
 
-  const [members, invitations, permissions, auditLogs] = await Promise.all([
+  const [members, invitations, permissions, auditLogs, pipelineGroups, pipelineStages] = await Promise.all([
     getMembers(access),
     getWorkspaceInvitations(),
     ensureRolePermissions(access),
     getWorkspaceAuditLogs(),
+    access.supabase
+      .from("pipeline_groups")
+      .select("id")
+      .eq("workspace_id", access.activeWorkspace.workspace.id),
+    access.supabase
+      .from("pipeline_stages")
+      .select("id")
+      .eq("workspace_id", access.activeWorkspace.workspace.id),
   ]);
+  const isPipelineSchemaPending =
+    isPipelineSchemaPendingMessage(pipelineGroups.error?.message) ||
+    isPipelineSchemaPendingMessage(pipelineStages.error?.message);
+
+  if ((pipelineGroups.error || pipelineStages.error) && !isPipelineSchemaPending) {
+    throw new Error(
+      pipelineGroups.error?.message ?? pipelineStages.error?.message,
+    );
+  }
+
+  if (isPipelineSchemaPending) {
+    console.warn("Owner console overview loaded without pipeline metadata", {
+      pipelineGroupsError: pipelineGroups.error?.message ?? null,
+      pipelineStagesError: pipelineStages.error?.message ?? null,
+    });
+  }
   const modules = access.activeWorkspace.modules;
+  const branding = access.activeWorkspace.branding;
   const enabledModuleCount = modules
     ? [
         modules.leads_enabled,
@@ -317,9 +374,20 @@ export async function getOwnerConsoleOverview(): Promise<OwnerConsoleOverview | 
         modules.invoices_enabled,
       ].filter(Boolean).length
     : 0;
+  const activeMemberCount = members.filter((member) => member.status === "active").length;
+  const brandingFullyConfigured = Boolean(
+    branding &&
+      branding.app_name.trim().length > 0 &&
+      branding.logo_url &&
+      branding.icon_url &&
+      branding.primary_color &&
+      branding.accent_color,
+  );
 
   return {
+    accessRulesConfigured: permissions.length > 0,
     auditLogCount: auditLogs?.length ?? 0,
+    brandingFullyConfigured,
     brandingConfigured: Boolean(access.activeWorkspace.branding),
     enabledModuleCount,
     latestAuditLogs: (auditLogs ?? []).slice(0, 5),
@@ -327,7 +395,10 @@ export async function getOwnerConsoleOverview(): Promise<OwnerConsoleOverview | 
     pendingInvitationCount: (invitations ?? []).filter(
       (invitation) => invitation.status === "pending",
     ).length,
+    pipelineGroupCount: isPipelineSchemaPending ? 0 : (pipelineGroups.data?.length ?? 0),
+    pipelineStageCount: isPipelineSchemaPending ? 0 : (pipelineStages.data?.length ?? 0),
     rolePermissionCount: permissions.length,
+    teamReady: activeMemberCount > 1,
     workspace: access.activeWorkspace.workspace,
   };
 }

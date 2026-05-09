@@ -4,6 +4,7 @@ import { CheckSquareIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
 import type { ApiResponse } from "@/types/api";
 
 type AddTaskDialogProps = {
@@ -32,6 +33,8 @@ export function AddTaskDialog({
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [dueTime, setDueTime] = useState("");
 
   function closeDialog() {
     if (isSubmitting) {
@@ -39,6 +42,8 @@ export function AddTaskDialog({
     }
 
     setError(null);
+    setDueDate(undefined);
+    setDueTime("");
     setIsOpen(false);
   }
 
@@ -48,7 +53,11 @@ export function AddTaskDialog({
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
-    const dueAt = String(formData.get("due_at") ?? "");
+    const dueDateValue = dueDate
+      ? `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}-${String(dueDate.getDate()).padStart(2, "0")}`
+      : "";
+    const dueAt =
+      dueDateValue && dueTime ? `${dueDateValue}T${dueTime}` : "";
 
     const payload = {
       description: String(formData.get("description") ?? ""),
@@ -76,6 +85,8 @@ export function AddTaskDialog({
       }
 
       formRef.current?.reset();
+      setDueDate(undefined);
+      setDueTime("");
       setIsOpen(false);
       router.refresh();
     } catch (caughtError) {
@@ -177,17 +188,28 @@ export function AddTaskDialog({
                 <div>
                   <label
                     className="text-sm font-medium text-[var(--ops-text)]"
-                    htmlFor="task-due-at"
+                    htmlFor="task-due-at-time"
                   >
                     Due date/time
                   </label>
-                  <input
-                    className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-                    disabled={isSubmitting}
-                    id="task-due-at"
-                    name="due_at"
-                    type="datetime-local"
-                  />
+                  <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px]">
+                    <DatePicker
+                      aria-label="Task due date"
+                      clearable
+                      disabled={isSubmitting}
+                      onChange={setDueDate}
+                      value={dueDate}
+                    />
+                    <input
+                      className="h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--workspace-primary,var(--ops-primary))] focus:ring-2 focus:ring-[var(--workspace-primary-glow,var(--ops-primary-glow))]"
+                      disabled={isSubmitting}
+                      id="task-due-at-time"
+                      onChange={(event) => setDueTime(event.target.value)}
+                      step="900"
+                      type="time"
+                      value={dueTime}
+                    />
+                  </div>
                 </div>
 
                 <div>

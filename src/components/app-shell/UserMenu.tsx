@@ -1,20 +1,13 @@
 "use client";
 
 import { UserCircleIcon } from "@phosphor-icons/react";
-import { SignOutButton } from "./SignOutButton";
-
 type UserMenuProps = {
   compact?: boolean;
 };
 
 export function UserMenu({ compact = false }: UserMenuProps) {
   if (compact) {
-    return (
-      <SignOutButton
-        className="bg-[var(--ops-sidebar)] text-sm font-semibold text-[var(--ops-white)] hover:bg-[var(--ops-sidebar-soft)]"
-        compact
-      />
-    );
+    return null;
   }
 
   return (
@@ -28,16 +21,19 @@ export function UserMenu({ compact = false }: UserMenuProps) {
           <UserCircleIcon aria-hidden="true" size={20} weight="duotone" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-[var(--ops-white)]">
-            Account
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-[var(--ops-white)]">
+              Account
+            </p>
+            <span
+              aria-label="Active"
+              className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-emerald-500/30"
+              title="Active"
+            />
+          </div>
           <p className="mt-0.5 text-xs text-white/55">Profile loads later.</p>
         </div>
       </div>
-
-      <SignOutButton
-        className="mt-4 w-full border border-white/10 text-white/80 hover:bg-white/10 hover:text-[var(--ops-white)]"
-      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { PipelineSettings } from "@/components/settings/PipelineSettings";
+import { PipelineGroupsManager } from "@/components/owner/pipeline/PipelineGroupsManager";
 import { getOwnerWorkspaceSettings } from "@/lib/owner/queries";
 
 export default async function OwnerPipelinePage() {
@@ -15,10 +15,13 @@ export default async function OwnerPipelinePage() {
           Pipeline
         </h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--ops-text-soft)]">
-          Owner-managed lead and job stages.
+          Owner-managed pipeline groups, defaults, and stages for workspace workflows.
         </p>
       </section>
-      <PipelineSettings canManageSettings stages={settings.pipelineStages} />
+      <PipelineGroupsManager
+        groups={settings.pipelineGroups}
+        stages={settings.pipelineStages}
+      />
     </div>
   );
 }

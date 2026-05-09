@@ -2,8 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import type { CSSProperties } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import {
+  normalizeHexColor,
+  validateHexColor,
+} from "@/lib/validation/branding";
 import type { ApiResponse } from "@/types/api";
 import type { WorkspaceBrandingSettings } from "@/types/domain";
 
@@ -13,6 +18,10 @@ type BrandingFormProps = {
 };
 
 type BrandingResponse = Record<string, unknown>;
+
+const DEFAULT_APP_NAME = "OpsPilot";
+const DEFAULT_PRIMARY_COLOR = "#6D5DFC";
+const DEFAULT_ACCENT_COLOR = "#4F46E5";
 
 function getErrorMessage(response: ApiResponse<BrandingResponse>) {
   return response.ok ? null : response.error.message;
@@ -27,30 +36,59 @@ export function BrandingForm({
   const [success, setSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [primaryColor, setPrimaryColor] = useState(
-    branding?.primary_color ?? "#6D5DFC",
+    branding?.primary_color ?? DEFAULT_PRIMARY_COLOR,
   );
   const [accentColor, setAccentColor] = useState(
-    branding?.accent_color ?? "#4F46E5",
+    branding?.accent_color ?? DEFAULT_ACCENT_COLOR,
   );
-  const [appName, setAppName] = useState(branding?.app_name ?? "OpsPilot");
+  const [appName, setAppName] = useState(branding?.app_name ?? DEFAULT_APP_NAME);
+  const [themeMode, setThemeMode] = useState(branding?.theme_mode ?? "system");
   const disabled = !canManageSettings || isSubmitting;
+
+  function handlePrimaryColorChange(value: string) {
+    setPrimaryColor(normalizeHexColor(value));
+  }
+
+  function handleAccentColorChange(value: string) {
+    setAccentColor(normalizeHexColor(value));
+  }
+
+  function resetDefaults() {
+    setAppName(DEFAULT_APP_NAME);
+    setPrimaryColor(DEFAULT_PRIMARY_COLOR);
+    setAccentColor(DEFAULT_ACCENT_COLOR);
+    setThemeMode("system");
+    setError(null);
+    setSuccess(null);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSuccess(null);
+
+    const normalizedPrimaryColor = normalizeHexColor(primaryColor);
+    const normalizedAccentColor = normalizeHexColor(accentColor);
+
+    if (
+      !validateHexColor(normalizedPrimaryColor) ||
+      !validateHexColor(normalizedAccentColor)
+    ) {
+      setError("Use valid HEX colors like #6D5DFC.");
+      return;
+    }
+
     setIsSubmitting(true);
 
-    const formData = new FormData(event.currentTarget);
     const payload = {
-      accent_color: String(formData.get("accent_color") ?? ""),
-      app_name: String(formData.get("app_name") ?? ""),
-      icon_url: String(formData.get("icon_url") ?? ""),
-      login_heading: String(formData.get("login_heading") ?? ""),
-      login_subtext: String(formData.get("login_subtext") ?? ""),
-      logo_url: String(formData.get("logo_url") ?? ""),
-      primary_color: String(formData.get("primary_color") ?? ""),
-      theme_mode: String(formData.get("theme_mode") ?? "system"),
+      accent_color: normalizedAccentColor,
+      app_name: appName,
+      icon_url: branding?.icon_url ?? "",
+      login_heading: branding?.login_heading ?? "",
+      login_subtext: branding?.login_subtext ?? "",
+      logo_url: branding?.logo_url ?? "",
+      primary_color: normalizedPrimaryColor,
+      theme_mode: themeMode,
     };
 
     try {
@@ -69,6 +107,8 @@ export function BrandingForm({
         return;
       }
 
+      setPrimaryColor(normalizedPrimaryColor);
+      setAccentColor(normalizedAccentColor);
       setSuccess("Workspace branding updated.");
       router.refresh();
     } catch (caughtError) {
@@ -94,7 +134,7 @@ export function BrandingForm({
         </p>
       </div>
 
-      <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+      <form className="mt-5 space-y-5" onSubmit={handleSubmit}>
         {error ? (
           <p
             className="rounded-lg bg-[var(--ops-danger-soft)] p-3 text-sm text-[var(--ops-danger)]"
@@ -119,13 +159,12 @@ export function BrandingForm({
             </label>
             <input
               className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-              defaultValue={branding?.app_name ?? "OpsPilot"}
               disabled={disabled}
               id="settings-app-name"
-              name="app_name"
               onChange={(event) => setAppName(event.target.value)}
               required
               type="text"
+              value={appName}
             />
           </div>
 
@@ -138,10 +177,12 @@ export function BrandingForm({
             </label>
             <select
               className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-              defaultValue={branding?.theme_mode ?? "system"}
               disabled={disabled}
               id="settings-theme-mode"
-              name="theme_mode"
+              onChange={(event) =>
+                setThemeMode(event.target.value as typeof themeMode)
+              }
+              value={themeMode}
             >
               <option value="system">System</option>
               <option value="light">Light</option>
@@ -149,132 +190,133 @@ export function BrandingForm({
             </select>
           </div>
 
-          <div>
+          <div className="md:col-span-2">
             <label
               className="text-sm font-medium text-[var(--ops-text)]"
               htmlFor="settings-primary-color"
             >
               Primary color
             </label>
-            <input
-              className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-              defaultValue={primaryColor}
-              disabled={disabled}
-              id="settings-primary-color"
-              name="primary_color"
-              onChange={(event) => setPrimaryColor(event.target.value)}
-              required
-              type="text"
-            />
+            <div className="mt-2 grid gap-3 sm:grid-cols-[72px_1fr]">
+              <input
+                aria-label="Primary color picker"
+                className="h-10 w-full cursor-pointer rounded-lg border border-[var(--ops-border)] bg-white p-1 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={disabled}
+                id="settings-primary-color"
+                onChange={(event) => handlePrimaryColorChange(event.target.value)}
+                type="color"
+                value={validateHexColor(primaryColor) ? primaryColor : DEFAULT_PRIMARY_COLOR}
+              />
+              <input
+                aria-label="Primary color HEX"
+                className="h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm font-medium text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+                disabled={disabled}
+                onChange={(event) => setPrimaryColor(event.target.value)}
+                onBlur={(event) => handlePrimaryColorChange(event.target.value)}
+                required
+                type="text"
+                value={primaryColor}
+              />
+            </div>
           </div>
 
-          <div>
+          <div className="md:col-span-2">
             <label
               className="text-sm font-medium text-[var(--ops-text)]"
               htmlFor="settings-accent-color"
             >
               Accent color
             </label>
-            <input
-              className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-              defaultValue={accentColor}
-              disabled={disabled}
-              id="settings-accent-color"
-              name="accent_color"
-              onChange={(event) => setAccentColor(event.target.value)}
-              required
-              type="text"
-            />
-          </div>
-
-          <div>
-            <label
-              className="text-sm font-medium text-[var(--ops-text)]"
-              htmlFor="settings-logo-url"
-            >
-              Logo URL
-            </label>
-            <input
-              className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-              defaultValue={branding?.logo_url ?? ""}
-              disabled={disabled}
-              id="settings-logo-url"
-              name="logo_url"
-              type="text"
-            />
-          </div>
-
-          <div>
-            <label
-              className="text-sm font-medium text-[var(--ops-text)]"
-              htmlFor="settings-icon-url"
-            >
-              Icon URL
-            </label>
-            <input
-              className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-              defaultValue={branding?.icon_url ?? ""}
-              disabled={disabled}
-              id="settings-icon-url"
-              name="icon_url"
-              type="text"
-            />
-          </div>
-
-          <div>
-            <label
-              className="text-sm font-medium text-[var(--ops-text)]"
-              htmlFor="settings-login-heading"
-            >
-              Login heading
-            </label>
-            <input
-              className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-              defaultValue={branding?.login_heading ?? ""}
-              disabled={disabled}
-              id="settings-login-heading"
-              name="login_heading"
-              type="text"
-            />
-          </div>
-
-          <div>
-            <label
-              className="text-sm font-medium text-[var(--ops-text)]"
-              htmlFor="settings-login-subtext"
-            >
-              Login subtext
-            </label>
-            <input
-              className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-              defaultValue={branding?.login_subtext ?? ""}
-              disabled={disabled}
-              id="settings-login-subtext"
-              name="login_subtext"
-              type="text"
-            />
+            <div className="mt-2 grid gap-3 sm:grid-cols-[72px_1fr]">
+              <input
+                aria-label="Accent color picker"
+                className="h-10 w-full cursor-pointer rounded-lg border border-[var(--ops-border)] bg-white p-1 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={disabled}
+                id="settings-accent-color"
+                onChange={(event) => handleAccentColorChange(event.target.value)}
+                type="color"
+                value={validateHexColor(accentColor) ? accentColor : DEFAULT_ACCENT_COLOR}
+              />
+              <input
+                aria-label="Accent color HEX"
+                className="h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm font-medium text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+                disabled={disabled}
+                onChange={(event) => setAccentColor(event.target.value)}
+                onBlur={(event) => handleAccentColorChange(event.target.value)}
+                required
+                type="text"
+                value={accentColor}
+              />
+            </div>
           </div>
         </div>
 
-        <div className="rounded-lg border border-[var(--ops-border)] bg-[var(--ops-card-soft)] p-4">
+        <div
+          className="rounded-lg border border-[var(--ops-border)] bg-[var(--ops-card-soft)] p-4"
+          style={
+            {
+              "--preview-accent": accentColor,
+              "--preview-primary": primaryColor,
+            } as CSSProperties
+          }
+        >
           <p className="text-xs font-semibold uppercase text-[var(--ops-text-muted)]">
             Preview
           </p>
-          <div className="mt-3 flex items-center gap-3">
-            <div
-              className="h-10 w-10 rounded-lg"
-              style={{ backgroundColor: primaryColor }}
-            />
+          <div className="mt-4 space-y-4 rounded-lg border border-[var(--ops-border)] bg-white p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                className="inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white shadow-[0_12px_28px_var(--ops-primary-glow)]"
+                style={{ backgroundColor: primaryColor }}
+                type="button"
+              >
+                Primary button
+              </button>
+              <button
+                className="inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-semibold text-white"
+                style={{ backgroundColor: accentColor }}
+                type="button"
+              >
+                Accent action
+              </button>
+              <span
+                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold text-white"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Active badge
+              </span>
+            </div>
+            <div className="rounded-lg bg-[#071327] p-3">
+              <div
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-white"
+                style={{
+                  background: `linear-gradient(135deg, ${primaryColor}, ${accentColor})`,
+                }}
+              >
+                <span className="h-2.5 w-2.5 rounded-full bg-white" />
+                Active nav sample
+              </div>
+            </div>
             <div>
-              <p className="font-semibold text-[var(--ops-text)]">{appName}</p>
+              <p className="font-semibold text-[var(--ops-text)]">
+                {appName || DEFAULT_APP_NAME}
+              </p>
               <p className="text-sm text-[var(--ops-text-soft)]">
-                Accent {accentColor}
+                Primary {primaryColor} · Accent {accentColor}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Button
+            disabled={disabled}
+            onClick={resetDefaults}
+            type="button"
+            variant="secondary"
+          >
+            Reset to default
+          </Button>
           <Button disabled={disabled} type="submit">
             {isSubmitting ? "Saving..." : "Save branding"}
           </Button>

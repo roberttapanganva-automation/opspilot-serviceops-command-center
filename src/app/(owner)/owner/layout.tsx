@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { OwnerConsoleShell } from "@/components/owner/OwnerConsoleShell";
 import { OwnerRestrictedState } from "@/components/owner/OwnerRestrictedState";
 import { updateCurrentUserLastSeen } from "@/lib/auth/lastSeen";
 import { getOwnerAccessContext } from "@/lib/owner/access";
+import { getThemePreference } from "@/lib/theme/getThemePreference";
 
 export default async function OwnerLayout({
   children,
@@ -16,10 +18,13 @@ export default async function OwnerLayout({
   }
 
   await updateCurrentUserLastSeen();
+  const themePreference = await getThemePreference(access.activeWorkspace);
 
   return (
-    <OwnerConsoleShell workspaceContext={access.activeWorkspace}>
-      {children}
-    </OwnerConsoleShell>
+    <ThemeProvider initialPreference={themePreference}>
+      <OwnerConsoleShell workspaceContext={access.activeWorkspace}>
+        {children}
+      </OwnerConsoleShell>
+    </ThemeProvider>
   );
 }

@@ -65,18 +65,74 @@ export type UserThemePreference = {
 
 export type WorkspaceModuleSettings = WorkspaceModules;
 
+export type PipelineEntityType = "lead" | "job";
+
+export type PipelineGroup = {
+  created_at: string;
+  created_by: string | null;
+  description: string | null;
+  entity_type: PipelineEntityType;
+  id: string;
+  is_default: boolean;
+  name: string;
+  order_index: number;
+  updated_at: string;
+  updated_by: string | null;
+  workspace_id: string;
+};
+
 export type PipelineStage = {
   color: string;
   created_at: string;
-  entity_type: "lead" | "job";
+  entity_type: PipelineEntityType;
   id: string;
   is_closed: boolean;
   is_lost: boolean;
   is_won: boolean;
   name: string;
   order_index: number;
+  pipeline_group_id: string;
   updated_at: string;
   workspace_id: string;
+};
+
+export type PipelineBoardCard = {
+  client: {
+    email: string | null;
+    name: string | null;
+  } | null;
+  entity_type: PipelineEntityType;
+  estimated_value: number | null;
+  id: string;
+  location: string | null;
+  next_follow_up_at: string | null;
+  payment_status: "unpaid" | "partial" | "paid" | "refunded" | "not_applicable" | null;
+  priority: "low" | "normal" | "high" | "urgent" | null;
+  scheduled_start: string | null;
+  service_type: string | null;
+  stage_id: string | null;
+  status: string;
+  title: string;
+};
+
+export type PipelineBoardStage = PipelineStage & {
+  card_count: number;
+  cards: PipelineBoardCard[];
+  total_estimated_value: number;
+};
+
+export type PipelineBoard = {
+  can_move_cards: boolean;
+  entity_type: PipelineEntityType | null;
+  groups: PipelineGroup[];
+  selected_group: PipelineGroup | null;
+  stages: PipelineBoardStage[];
+};
+
+export type PipelineMoveRequest = {
+  entity_type: PipelineEntityType;
+  record_id: string;
+  target_stage_id: string;
 };
 
 export type WorkspaceSettingsData = {
@@ -85,11 +141,14 @@ export type WorkspaceSettingsData = {
   canManageBranding: boolean;
   canManageModules: boolean;
   canManagePipeline: boolean;
+  canViewMemberVisibility: boolean;
   canViewSettings: boolean;
   currentUserRole: WorkspaceRole;
   modules: WorkspaceModuleSettings | null;
+  pipelineGroups: PipelineGroup[];
   pipelineStages: PipelineStage[];
   rolePermissions: WorkspaceRolePermission | null;
+  teamMembers: WorkspaceMemberWithProfile[];
   workspace: Workspace;
 };
 
@@ -191,13 +250,18 @@ export type OwnerAuditLog = {
 };
 
 export type OwnerConsoleOverview = {
+  accessRulesConfigured: boolean;
   auditLogCount: number;
+  brandingFullyConfigured: boolean;
   brandingConfigured: boolean;
   enabledModuleCount: number;
   latestAuditLogs: OwnerAuditLog[];
   memberCount: number;
   pendingInvitationCount: number;
+  pipelineGroupCount: number;
+  pipelineStageCount: number;
   rolePermissionCount: number;
+  teamReady: boolean;
   workspace: Workspace;
 };
 
@@ -239,10 +303,20 @@ export type DashboardTaskSummary = {
 export type DashboardPipelineStageSummary = {
   color: string;
   count: number;
-  entity_type: "lead" | "job";
+  entity_type: PipelineEntityType;
   id: string;
   name: string;
   order_index: number;
+};
+
+export type PipelineBoardSummary = {
+  entity_type: PipelineEntityType | null;
+  group: PipelineGroup | null;
+  has_configured_stages: boolean;
+  has_error: boolean;
+  stages: DashboardPipelineStageSummary[];
+  total_cards: number;
+  total_estimated_value: number;
 };
 
 export type DashboardRevenueSummary = {
@@ -266,10 +340,7 @@ export type DashboardActivityItem = {
 export type DashboardOverview = {
   agendaItems: DashboardAgendaItem[];
   kpis: DashboardKpis;
-  pipeline: {
-    jobStages: DashboardPipelineStageSummary[];
-    leadStages: DashboardPipelineStageSummary[];
-  };
+  pipeline: PipelineBoardSummary;
   recentActivity: DashboardActivityItem[];
   revenue: DashboardRevenueSummary;
   taskSummary: DashboardTaskSummary;

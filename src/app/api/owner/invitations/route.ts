@@ -9,6 +9,19 @@ function jsonResponse<T>(body: ApiResponse<T>, status = 200) {
   return NextResponse.json(body, { status });
 }
 
+function getInvitationCreateErrorMessage(errorMessage: string) {
+  const normalizedMessage = errorMessage.toLowerCase();
+
+  if (
+    normalizedMessage.includes("duplicate key") ||
+    normalizedMessage.includes("idx_workspace_invitations_pending_email")
+  ) {
+    return "A pending invite already exists for this email. Copy the existing invite link or cancel it first.";
+  }
+
+  return "We could not create the invite record.";
+}
+
 export async function GET() {
   const access = await getOwnerAccessContext();
 
@@ -89,7 +102,7 @@ export async function POST(request: Request) {
         {
           error: {
             code: "INVITATION_CREATE_FAILED",
-            message: "We could not create the invite record.",
+            message: getInvitationCreateErrorMessage(error.message),
             details: error.message,
           },
           ok: false,
