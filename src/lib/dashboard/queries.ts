@@ -1,3 +1,4 @@
+import { buildAuditActivityLookups, presentAuditActivity } from "@/lib/activity/presentation";
 import { createClient } from "@/lib/supabase/server";
 import { getPipelinePreviewForDashboard } from "@/lib/pipelines/queries";
 import { getActiveWorkspace } from "@/lib/tenant/getActiveWorkspace";
@@ -49,9 +50,12 @@ type AutomationLogRow = {
 
 type AuditLogRow = {
   action: string;
+  actor_user_id: string | null;
   created_at: string;
+  entity_id: string | null;
   entity_type: string;
   id: string;
+  metadata: Record<string, unknown> | null;
 };
 
 function startOfLocalDay(value: Date) {
@@ -139,30 +143,39 @@ function buildAgendaItems({
   );
 }
 
-function buildActivityItems({
+async function buildActivityItems({
   auditLogs,
   automationLogs,
+  supabase,
 }: {
   auditLogs: AuditLogRow[];
   automationLogs: AutomationLogRow[];
-}): DashboardActivityItem[] {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+}): Promise<DashboardActivityItem[]> {
   const automationItems = automationLogs.map((log) => ({
     created_at: log.created_at,
     id: log.id,
+    icon: "automation",
     message: log.error_message ?? log.message,
     status: log.status,
     title: log.automation_type,
     type: "automation" as const,
   }));
 
-  const auditItems = auditLogs.map((log) => ({
-    created_at: log.created_at,
-    id: log.id,
-    message: log.entity_type,
-    status: null,
-    title: log.action,
-    type: "audit" as const,
-  }));
+  const auditLookups = await buildAuditActivityLookups(supabase, auditLogs);
+  const auditItems = auditLogs.map((log) => {
+    const presentation = presentAuditActivity(log, auditLookups);
+
+    return {
+      created_at: log.created_at,
+      id: log.id,
+      icon: presentation.icon,
+      message: presentation.description,
+      status: null,
+      title: presentation.title,
+      type: "audit" as const,
+    };
+  });
 
   return [...automationItems, ...auditItems]
     .sort(
@@ -283,7 +296,7 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
       .returns<AutomationLogRow[]>(),
     supabase
       .from("audit_logs")
-      .select("id,action,entity_type,created_at")
+      .select("id,action,actor_user_id,entity_id,entity_type,metadata,created_at")
       .eq("workspace_id", workspaceId)
       .order("created_at", { ascending: false })
       .limit(8)
@@ -359,9 +372,10 @@ export async function getDashboardOverview(): Promise<DashboardOverview> {
       overdueTasks,
     },
     pipeline: pipelinePreview,
-    recentActivity: buildActivityItems({
+    recentActivity: await buildActivityItems({
       auditLogs,
       automationLogs,
+      supabase,
     }),
     revenue: {
       completedActualRevenue,

@@ -35,6 +35,7 @@ const optionalDateTime = z.preprocess((value) => {
 }, z.string().refine((value) => !Number.isNaN(Date.parse(value)), "Enter a valid follow-up date.").optional());
 
 export const createLeadSchema = z.object({
+  client_id: z.uuid().optional(),
   client_email: optionalEmail,
   client_name: optionalText,
   client_phone: optionalText,
@@ -43,8 +44,19 @@ export const createLeadSchema = z.object({
   notes: optionalText,
   priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
   source: optionalText.default("manual"),
+  stage_id: z.uuid().optional(),
+  status: z.enum(["open", "won", "lost"]).default("open"),
+  title: z.string().trim().min(1, "Lead title is required."),
+});
+
+export const updateLeadSchema = z.object({
+  estimated_value: optionalNumber.default(0),
+  next_follow_up_at: optionalDateTime,
+  priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+  source: optionalText.default("manual"),
   status: z.enum(["open", "won", "lost"]).default("open"),
   title: z.string().trim().min(1, "Lead title is required."),
 });
 
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
+export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;

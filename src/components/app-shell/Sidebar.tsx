@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   CaretLeftIcon,
   CaretRightIcon,
+  MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
 import {
   getWorkspaceDisplayName,
@@ -12,6 +13,7 @@ import {
   getWorkspaceLogoUrl,
 } from "@/lib/branding/display";
 import type { ActiveWorkspaceContext } from "@/types/domain";
+import { Input } from "@/components/ui/Input";
 import { getVisibleNavItems } from "./nav-items";
 import { UserMenu } from "./UserMenu";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
@@ -55,37 +57,23 @@ export function Sidebar({
         href="/dashboard"
       >
         {collapsed ? (
-          <span
-            aria-label={appName}
-            className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-[var(--ops-sidebar-card)] text-sm font-bold shadow-[0_8px_24px_var(--ops-primary-glow)]"
-            title={appName}
-          >
-            {collapsedAssetUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                alt={`${appName} icon`}
-                className="h-full w-full object-contain"
-                src={collapsedAssetUrl}
-              />
-            ) : (
-              "OP"
-            )}
+          <span aria-label={appName} className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden" title={appName}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              alt={`${appName} icon`}
+              className="h-full w-full object-contain"
+              src={collapsedAssetUrl}
+            />
           </span>
         ) : (
           <span className="min-w-0 flex-1">
-            <span className="flex h-16 w-full items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-[var(--ops-sidebar-card)] px-3 shadow-[0_8px_24px_var(--ops-primary-glow)]">
-              {expandedAssetUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  alt={`${appName} logo`}
-                  className="h-full max-h-14 w-full object-contain object-center"
-                  src={expandedAssetUrl}
-                />
-              ) : (
-                <span className="truncate text-sm font-semibold tracking-wide">
-                  {appName}
-                </span>
-              )}
+            <span className="flex min-h-[48px] w-full items-center justify-center overflow-hidden px-1 py-0.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                alt={`${appName} logo`}
+                className="max-h-12 w-auto max-w-full object-contain object-center"
+                src={expandedAssetUrl}
+              />
             </span>
             <span className="mt-1 block text-center text-xs text-white/55">
               Command Center
@@ -98,8 +86,33 @@ export function Sidebar({
         <WorkspaceSwitcher workspaceContext={workspaceContext} />
       ) : null}
 
+      {!collapsed ? (
+        <div className="mt-4">
+          <Input
+            className="h-9 w-full rounded-lg border-white/10 bg-white/8 text-white placeholder:text-white/45 focus:border-[var(--ops-primary)]"
+            id="global-search"
+            icon={
+              <MagnifyingGlassIcon aria-hidden="true" size={18} weight="regular" />
+            }
+            label="Search anything"
+            placeholder="Search anything..."
+            type="search"
+          />
+        </div>
+      ) : (
+        <div className="mt-5 flex justify-center">
+          <button
+            aria-label="Search anything"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-white/8 text-white/75 transition hover:bg-white/12 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ops-primary)]"
+            type="button"
+          >
+            <MagnifyingGlassIcon aria-hidden="true" size={18} weight="regular" />
+          </button>
+        </div>
+      )}
+
       <nav
-        className={`flex flex-1 flex-col gap-1 ${collapsed ? "mt-8" : "mt-8"}`}
+        className={`flex flex-1 flex-col gap-1 ${collapsed ? "mt-6" : "mt-5"}`}
         aria-label="Main"
       >
         {visibleNavItems.map((item) => {

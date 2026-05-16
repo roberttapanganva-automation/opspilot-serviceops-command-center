@@ -39,6 +39,12 @@ Before making changes, follow these docs in `docs`
 - Do not add fake production data.
 - Use empty states if no data exists.
 - Keep the dark navy sidebar and light main workspace design.
+- Owner Console is owner-only.
+- Normal Settings is personal/account and role-limited.
+- Personal theme preference lives in `profiles.theme_mode`.
+- Role permissions should flow through `workspace_role_permissions`.
+- Use Phosphor Icons for UI consistency.
+- Invite email sending is deferred.
 - Make small safe patches.
 - Run `npm run build` after meaningful changes.
 - Explain every file changed.
@@ -71,9 +77,11 @@ The app should feel like a premium SaaS dashboard
 9. Tasks CRUD
 10. Dashboard real metrics
 11. Settings foundation
-12. n8n later
-13. Stripe later
-14. OpenAI later
+12. Owner Console workspace controls
+13. Pipeline board foundation
+14. n8n later
+15. Stripe later
+16. OpenAI later
 
 ## Terminal Commands
 

@@ -81,6 +81,18 @@ automation_logs
 audit_logs
 ```
 
+Current implementation additions:
+
+```text
+workspace_invitations
+workspace_role_permissions
+pipeline_groups
+profiles.theme_mode
+profiles.last_seen_at
+pipeline_stages.pipeline_group_id
+workspace-branding Supabase Storage bucket
+```
+
 Optional later:
 
 ```text
@@ -137,7 +149,13 @@ value
 005_logs_templates.sql
 006_rls_policies.sql
 007_indexes.sql
-008_dashboard_views_optional.sql
+008_owner_console_foundation.sql
+009_invite_acceptance_flow.sql
+010_branding_storage_and_user_theme.sql
+011_fix_profile_theme_preference_rls.sql
+012_workspace_branding_storage.sql
+013_pipeline_groups_and_board.sql
+014_fix_pipeline_stage_group_uniqueness.sql
 ```
 
 ---
@@ -301,12 +319,43 @@ create table public.workspace_modules (
 );
 ```
 
+## pipeline_groups
+
+Owner-managed pipeline folders for lead and job workflows.
+
+```sql
+create table public.pipeline_groups (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  name text not null,
+  description text,
+  entity_type text not null check (entity_type in ('lead', 'job')),
+  order_index integer not null default 0,
+  is_default boolean not null default false,
+  created_by uuid references auth.users(id) on delete set null,
+  updated_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (workspace_id, entity_type, name)
+);
+```
+
 ## pipeline_stages
+
+Current grouped pipeline rule:
+
+```text
+Stage names are unique inside a pipeline group:
+(workspace_id, pipeline_group_id, name)
+
+The same stage name may exist in different pipeline groups.
+```
 
 ```sql
 create table public.pipeline_stages (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  pipeline_group_id uuid not null references public.pipeline_groups(id) on delete cascade,
   entity_type text not null check (entity_type in ('lead', 'job')),
   name text not null,
   color text not null default '#6D5DFC',
@@ -316,7 +365,7 @@ create table public.pipeline_stages (
   is_lost boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (workspace_id, entity_type, name)
+  unique (workspace_id, pipeline_group_id, name)
 );
 ```
 

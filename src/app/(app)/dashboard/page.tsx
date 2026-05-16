@@ -60,8 +60,8 @@ export default async function DashboardPage() {
           Your operations command center is live.
         </h2>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--ops-text-soft)]">
-          Dashboard metrics are loaded from the active workspace across leads,
-          jobs, tasks, appointments, and activity logs.
+          Start the day with a clear read on pipeline movement, scheduled work,
+          overdue follow-ups, and the activity shaping this workspace.
         </p>
       </section>
 

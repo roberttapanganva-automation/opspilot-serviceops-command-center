@@ -137,9 +137,9 @@ Build the static dashboard UI shell only.
 
 ```bash
 npm install @supabase/supabase-js @supabase/ssr
-npm install lucide-react date-fns zod
-npm install react-hook-form @hookform/resolvers
-npm install recharts
+npm install @phosphor-icons/react @radix-ui/react-popover
+npm install date-fns react-day-picker zod
+npm install framer-motion
 ```
 
 ## UI helpers optional
@@ -170,7 +170,7 @@ Add scripts where possible:
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint",
     "typecheck": "tsc --noEmit"
   }
 }
@@ -274,6 +274,9 @@ Covers:
 - mobile layout
 - empty/loading/error states
 - app shell consistency
+- Owner Console separation from normal Settings
+- workspace branding token usage
+- pipeline board preview versus full board
 
 ## Design System Skill
 
@@ -492,6 +495,14 @@ Start with only these active companion skills:
 2. Next.js App Router Skill
 3. Supabase RLS Skill
 4. Premium SaaS UI Skill
+
+Current implementation notes:
+
+- Prefer Phosphor Icons for UI consistency.
+- Owner Console is the owner-only workspace control area.
+- Personal theme preference is separate from workspace branding.
+- Grouped pipelines and stage uniqueness are part of the active board direction.
+- Invitation email sending, n8n automation, Stripe billing, and OpenAI actions remain deferred.
 ```
 
 Add these later:

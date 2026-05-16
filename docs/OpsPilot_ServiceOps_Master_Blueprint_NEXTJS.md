@@ -21,6 +21,57 @@ OpsPilot_Codex_Plugins_and_Skills.md
 
 ---
 
+# Current Implementation Snapshot
+
+OpsPilot now includes the normal app shell plus an owner-only control area.
+
+- Main app routes: `/dashboard`, `/leads`, `/jobs`, `/tasks`, `/calendar`, `/automations`, `/settings`, and `/pipelines`.
+- Owner Console routes: `/owner`, `/owner/team`, `/owner/invitations`, `/owner/branding`, `/owner/modules`, `/owner/pipeline`, `/owner/access-rules`, and `/owner/audit-logs`.
+- Normal Settings is personal/account and role-limited. Workspace-wide controls live in Owner Console.
+- Personal theme preference is available to authenticated users through `profiles.theme_mode`.
+- Workspace branding is owner-managed through `workspace_branding` and can drive app name, logo/icon, primary/accent colors, login copy, and workspace default theme.
+- The dashboard Pipeline Overview is a preview only. The full working board is `/pipelines`.
+- Pipeline groups and stages are owner-managed; operations users move real lead/job cards through stages where their role permissions allow it.
+- Invitations are pending records in `workspace_invitations`. Invite links are copied manually for now; email sending is deferred.
+- Member activity uses `profiles.last_seen_at` for Online / Recently active / Offline style states. True realtime presence is deferred.
+
+## Current Role Access Matrix
+
+| Role | Current access |
+|---|---|
+| owner | Full workspace control, Owner Console, branding, modules, pipeline, roles, invites, audit logs |
+| admin | Operational access and role-limited Settings visibility; no Owner Console by default |
+| manager | Operational access and limited/read-only member visibility where enabled |
+| staff | Operational access only |
+| viewer | Read-only where practical |
+
+Owner role is not assignable from normal role dropdowns. Owner transfer is deferred.
+
+## Current Deferred Features
+
+- Real email sending for invitations
+- True realtime presence
+- Owner transfer
+- Workspace deletion
+- Stripe billing
+- n8n automation bridge
+- OpenAI assistant actions
+- Production deployment hardening and monitoring
+
+## Current Continuation Roadmap
+
+1. Patch 18B Branding Upload / Workspace Logo Storage
+2. Patch 18C Pipeline Board Foundation
+3. Patch 19 n8n Automation Bridge
+4. Patch 20 OpenAI Assistant Draft Actions
+5. Patch 21 Stripe Billing Foundation
+6. Patch 22 Production Hardening + Security Review
+7. Patch 23 Vercel Deployment Setup
+8. Patch 24 Demo Mode / Client Demo Polish
+9. Patch 25 Portfolio Case Study + Sales Assets
+
+---
+
 # 1. Product Identity
 
 ## Product Name

@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import {
+  createOrReuseClientInWorkspace,
+  getClientByIdInWorkspace,
+} from "@/lib/clients/mutations";
 import { getEffectiveRolePermission } from "@/lib/permissions/effective";
 import { canCreateOperationalRecords } from "@/lib/permissions/workspace";
 import { createClient } from "@/lib/supabase/server";
@@ -8,6 +12,14 @@ import { createLeadSchema } from "@/lib/validation/leads";
 import type { ApiResponse } from "@/types/api";
 
 type LeadResponse = {
+  clients: {
+    company_name: string | null;
+    email: string | null;
+    id: string;
+    name: string | null;
+    phone: string | null;
+    source: string | null;
+  } | null;
   client_id: string | null;
   created_at: string;
   estimated_value: number | string;
@@ -15,8 +27,16 @@ type LeadResponse = {
   next_follow_up_at: string | null;
   priority: "low" | "normal" | "high" | "urgent";
   source: string | null;
+  stage_id: string | null;
   status: "open" | "won" | "lost";
   title: string;
+};
+
+type PipelineStageLookup = {
+  entity_type: "lead" | "job";
+  id: string;
+  pipeline_group_id: string;
+  workspace_id: string;
 };
 
 function jsonResponse<T>(body: ApiResponse<T>, status = 200) {
@@ -75,7 +95,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("leads")
     .select(
-      "id,client_id,title,source,estimated_value,priority,status,next_follow_up_at,created_at",
+      "id,client_id,title,source,estimated_value,priority,status,stage_id,next_follow_up_at,created_at,clients(id,name,email,phone,company_name,source)",
     )
     .eq("workspace_id", activeWorkspace.context.workspace.id)
     .order("created_at", { ascending: false })
@@ -163,39 +183,115 @@ export async function POST(request: Request) {
   try {
     const payload = createLeadSchema.parse(await request.json());
     const workspaceId = activeWorkspace.context.workspace.id;
+    let stageId: string | null = null;
 
     let clientId: string | null = null;
 
-    if (payload.client_name) {
-      const { data: client, error: clientError } = await supabase
-        .from("clients")
-        .insert({
-          created_by: user.id,
-          email: payload.client_email ?? null,
-          name: payload.client_name,
-          phone: payload.client_phone ?? null,
-          source: payload.source,
-          updated_by: user.id,
-          workspace_id: workspaceId,
-        })
-        .select("id")
-        .single<{ id: string }>();
+    if (payload.stage_id) {
+      const { data: stage, error: stageError } = await supabase
+        .from("pipeline_stages")
+        .select("id,workspace_id,pipeline_group_id,entity_type")
+        .eq("id", payload.stage_id)
+        .eq("workspace_id", workspaceId)
+        .maybeSingle<PipelineStageLookup>();
 
-      if (clientError) {
+      if (stageError || !stage || stage.entity_type !== "lead") {
+        return jsonResponse(
+          {
+            error: {
+              code: "LEAD_STAGE_INVALID",
+              message: "The selected lead stage is not available in this workspace.",
+              details: stageError?.message,
+            },
+            ok: false,
+          },
+          400,
+        );
+      }
+
+      stageId = stage.id;
+    }
+
+    if (payload.client_id) {
+      try {
+        const linkedClient = await getClientByIdInWorkspace({
+          clientId: payload.client_id,
+          supabase,
+          workspaceId,
+        });
+
+        if (!linkedClient) {
+          return jsonResponse(
+            {
+              error: {
+                code: "CLIENT_LINK_FAILED",
+                message: "The selected contact is not available in this workspace.",
+              },
+              ok: false,
+            },
+            400,
+          );
+        }
+
+        clientId = linkedClient.id;
+      } catch (clientLookupError) {
+        return jsonResponse(
+          {
+            error: {
+              code: "CLIENT_LINK_FAILED",
+              message: "We could not verify the selected contact.",
+              details:
+                clientLookupError instanceof Error
+                  ? clientLookupError.message
+                  : undefined,
+            },
+            ok: false,
+          },
+          400,
+        );
+      }
+    } else if (payload.client_name || payload.client_email || payload.client_phone) {
+      try {
+        const result = await createOrReuseClientInWorkspace({
+          createdBy: user.id,
+          draft: {
+            email: payload.client_email,
+            name: payload.client_name,
+            phone: payload.client_phone,
+            source: payload.source,
+          },
+          supabase,
+          workspaceId,
+        });
+
+        if (!result.client) {
+          return jsonResponse(
+            {
+              error: {
+                code: "CLIENT_CREATE_REQUIRES_NAME",
+                message:
+                  "Choose an existing contact or add a contact name to create a new one.",
+              },
+              ok: false,
+            },
+            400,
+          );
+        }
+
+        clientId = result.client.id;
+      } catch (clientError) {
         return jsonResponse(
           {
             error: {
               code: "CLIENT_CREATE_FAILED",
               message: "We could not create the lead contact. Please try again.",
-              details: clientError.message,
+              details: clientError instanceof Error ? clientError.message : undefined,
             },
             ok: false,
           },
           500,
         );
       }
-
-      clientId = client.id;
     }
 
     const { data: lead, error: leadError } = await supabase
@@ -208,13 +304,14 @@ export async function POST(request: Request) {
         notes: payload.notes ?? null,
         priority: payload.priority,
         source: payload.source,
+        stage_id: stageId,
         status: payload.status,
         title: payload.title,
         updated_by: user.id,
         workspace_id: workspaceId,
       })
       .select(
-        "id,client_id,title,source,estimated_value,priority,status,next_follow_up_at,created_at",
+        "id,client_id,title,source,estimated_value,priority,status,stage_id,next_follow_up_at,created_at",
       )
       .single<LeadResponse>();
 

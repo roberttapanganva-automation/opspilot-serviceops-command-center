@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/Card";
 import { DateTimeCell, DateTimeHeader } from "@/components/ui/DateTimeCell";
 import { DeleteRecordButton } from "@/components/records/DeleteRecordButton";
+import { EditJobDialog } from "./EditJobDialog";
 import { JobStatusBadge, type JobStatus } from "./JobStatusBadge";
 import { JobsEmptyState } from "./JobsEmptyState";
 import {
@@ -54,6 +55,7 @@ export function JobsList({
   if (jobs.length === 0) {
     return <JobsEmptyState canCreateRecords={canCreateRecords} />;
   }
+  const showActions = canCreateRecords || canDeleteRecords;
 
   return (
     <Card className="overflow-hidden">
@@ -62,7 +64,7 @@ export function JobsList({
           Job queue
         </h2>
         <p className="mt-1 text-sm text-[var(--ops-text-soft)]">
-          Jobs are loaded from the active workspace.
+          Review upcoming service work, delivery status, and billing progress without leaving the queue.
         </p>
       </div>
 
@@ -91,7 +93,7 @@ export function JobsList({
               <th className="px-5 py-3" scope="col">
                 Created
               </th>
-              {canDeleteRecords ? (
+              {showActions ? (
                 <th className="px-5 py-3 text-right" scope="col">
                   Action
                 </th>
@@ -128,12 +130,17 @@ export function JobsList({
                 <td className="px-5 py-4 text-[var(--ops-text-soft)]">
                   {formatCreatedDate(job.created_at)}
                 </td>
-                {canDeleteRecords ? (
+                {showActions ? (
                   <td className="px-5 py-4">
-                    <DeleteRecordButton
-                      endpoint={`/api/jobs/${job.id}`}
-                      label={`Delete job ${job.title}`}
-                    />
+                    <div className="flex justify-end gap-2">
+                      {canCreateRecords ? <EditJobDialog job={job} /> : null}
+                      {canDeleteRecords ? (
+                        <DeleteRecordButton
+                          endpoint={`/api/jobs/${job.id}`}
+                          label={`Delete job ${job.title}`}
+                        />
+                      ) : null}
+                    </div>
                   </td>
                 ) : null}
               </tr>
@@ -156,12 +163,15 @@ export function JobsList({
               </div>
               <JobStatusBadge status={job.status} />
             </div>
-            {canDeleteRecords ? (
-              <div className="mt-4 flex justify-end">
-                <DeleteRecordButton
-                  endpoint={`/api/jobs/${job.id}`}
-                  label={`Delete job ${job.title}`}
-                />
+            {showActions ? (
+              <div className="mt-4 flex justify-end gap-2">
+                {canCreateRecords ? <EditJobDialog job={job} /> : null}
+                {canDeleteRecords ? (
+                  <DeleteRecordButton
+                    endpoint={`/api/jobs/${job.id}`}
+                    label={`Delete job ${job.title}`}
+                  />
+                ) : null}
               </div>
             ) : null}
 

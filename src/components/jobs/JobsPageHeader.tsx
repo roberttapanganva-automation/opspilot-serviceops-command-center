@@ -24,7 +24,7 @@ export function JobsPageHeader({ canCreateRecords }: JobsPageHeaderProps) {
             </div>
           </div>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--ops-text-soft)]">
-            Track scheduled work, service status, and estimated revenue.
+            Coordinate scheduled work, service progress, and the revenue tied to every job on the board.
           </p>
         </div>
 

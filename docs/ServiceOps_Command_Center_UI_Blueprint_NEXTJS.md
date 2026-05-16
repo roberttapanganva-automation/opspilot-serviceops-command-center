@@ -12,6 +12,20 @@ Next.js App Router + TypeScript + Tailwind CSS
 
 ---
 
+# Current Implementation Snapshot
+
+- The normal app shell keeps the dark navy sidebar and light main workspace.
+- The topbar includes search, messages, notifications, personal theme mode, and icon-only sign out with confirmation.
+- Owner Console is a separate owner-only route group with dark navy sidebar and branded active states.
+- Normal Settings is personal/account and role-limited; workspace-wide controls are in Owner Console.
+- `/pipelines` is the full working board. Dashboard Pipeline Overview remains a preview.
+- Owner Console Pipeline manages pipeline groups and stages. Lead stage columns can create real lead cards.
+- Branding uses workspace CSS variables for safe accent colors only; semantic success/warning/danger colors remain semantic.
+- Date picking uses the shared branded `DatePicker`/`DateTimeRangePicker` pattern instead of inconsistent native date fields.
+- Phosphor Icons are the current icon family.
+
+---
+
 # 1. Visual Direction
 
 The dashboard should feel:
@@ -252,17 +266,17 @@ Include:
 
 ```text
 Search anything...
-Add New
 Messages icon
 Bell icon
-User avatar
+Theme mode
+Sign out icon
 ```
 
 MVP behavior:
 
 - Search can be visual only at first
-- Add New opens quick-create menu or Lead modal first
 - Icons should not fake real notifications unless data exists
+- Notifications preview real audit activity and can be marked read locally
 
 ---
 
@@ -361,7 +375,7 @@ Recommended UI foundation:
 
 ```text
 Tailwind CSS
-lucide-react
+Phosphor Icons
 Radix UI primitives where useful
 shadcn/ui inspiration, but do not blindly install everything
 ```
@@ -439,14 +453,33 @@ MVP:
 
 ## Settings Page
 
-MVP sections:
+Normal Settings sections:
 
-- Workspace profile
-- Branding
-- Modules
-- Pipeline
-- Team placeholder
-- Security placeholder
+- Personal/account settings
+- Personal theme preference
+- Role-limited settings visibility
+
+Workspace-wide controls belong in Owner Console:
+
+```text
+/owner/team
+/owner/invitations
+/owner/branding
+/owner/modules
+/owner/pipeline
+/owner/access-rules
+/owner/audit-logs
+```
+
+## Pipeline Board Page
+
+`/pipelines` is the full working board.
+
+- Pipeline selector is compact and owner-defined.
+- Lead/job cards are real records only.
+- Viewer access is read-only.
+- Lead columns can show a plus icon for permitted roles to create a real lead card in that stage.
+- Owner Console remains the place to create pipeline groups and stages.
 
 ---
 

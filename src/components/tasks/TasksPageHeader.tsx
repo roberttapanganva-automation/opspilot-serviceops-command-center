@@ -24,7 +24,7 @@ export function TasksPageHeader({ canCreateRecords }: TasksPageHeaderProps) {
             </div>
           </div>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-[var(--ops-text-soft)]">
-            Track follow-ups, reminders, and operational work.
+            Keep follow-ups, reminders, and operational tasks moving so nothing critical slips through the day.
           </p>
         </div>
 

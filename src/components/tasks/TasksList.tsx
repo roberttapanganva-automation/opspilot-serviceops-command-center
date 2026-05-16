@@ -65,8 +65,7 @@ export function TasksList({
           Task queue
         </h2>
         <p className="mt-1 text-sm text-[var(--ops-text-soft)]">
-          Tasks are loaded from the active workspace. Overdue is calculated from
-          due date and status.
+          Monitor what is due next, what is overdue, and which operational items still need a clean handoff.
         </p>
       </div>
 
@@ -134,8 +133,7 @@ export function TasksList({
                   <td className="px-5 py-4">
                     <TaskActions
                       canDeleteRecords={canDeleteRecords}
-                      status={task.status}
-                      taskId={task.id}
+                      task={task}
                     />
                   </td>
                 </tr>
@@ -204,8 +202,7 @@ export function TasksList({
               <div className="mt-4">
                 <TaskActions
                   canDeleteRecords={canDeleteRecords}
-                  status={task.status}
-                  taskId={task.id}
+                  task={task}
                 />
               </div>
             </article>

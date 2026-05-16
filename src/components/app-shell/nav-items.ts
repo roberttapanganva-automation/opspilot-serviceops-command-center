@@ -19,7 +19,7 @@ const navItems = [
   { href: "/dashboard", label: "Overview", Icon: SquaresFourIcon },
   {
     href: "/leads",
-    label: "Leads",
+    label: "CRM",
     Icon: UsersThreeIcon,
     moduleKey: "leads_enabled",
   },

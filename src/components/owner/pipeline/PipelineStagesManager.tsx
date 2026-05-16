@@ -16,6 +16,10 @@ function isHexColor(value: string) {
   return /^#[0-9A-F]{6}$/.test(normalizeHexColor(value));
 }
 
+function getNextStageOrderIndex(stages: PipelineStage[]) {
+  return stages.length;
+}
+
 type PipelineStagesManagerProps = {
   group: PipelineGroup | null;
   onCreate: (
@@ -226,6 +230,13 @@ export function PipelineStagesManager({
 }: PipelineStagesManagerProps) {
   const [color, setColor] = useState("#6D5DFC");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newStageName, setNewStageName] = useState("");
+  const [newStageOrderIndex, setNewStageOrderIndex] = useState(
+    getNextStageOrderIndex(stages),
+  );
+  const [newStageIsClosed, setNewStageIsClosed] = useState(false);
+  const [newStageIsWon, setNewStageIsWon] = useState(false);
+  const [newStageIsLost, setNewStageIsLost] = useState(false);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -235,21 +246,25 @@ export function PipelineStagesManager({
     }
 
     setIsSubmitting(true);
-    const formData = new FormData(event.currentTarget);
 
     try {
       await onCreate(group, {
         color,
         entity_type: group.entity_type,
-        is_closed: formData.get("is_closed") === "on",
-        is_lost: formData.get("is_lost") === "on",
-        is_won: formData.get("is_won") === "on",
-        name: String(formData.get("name") ?? ""),
-        order_index: Number(formData.get("order_index") ?? 0),
+        is_closed: newStageIsClosed,
+        is_lost: newStageIsLost,
+        is_won: newStageIsWon,
+        name: newStageName,
+        order_index: newStageOrderIndex,
         pipeline_group_id: group.id,
       });
-      event.currentTarget.reset();
-      setColor("#6D5DFC");
+      setNewStageName("");
+      setNewStageOrderIndex(stages.length + 1);
+      setNewStageIsClosed(false);
+      setNewStageIsWon(false);
+      setNewStageIsLost(false);
+    } catch {
+      return;
     } finally {
       setIsSubmitting(false);
     }
@@ -284,7 +299,7 @@ export function PipelineStagesManager({
         </div>
       </div>
 
-      <div className="mt-5 space-y-3">
+      <div className="mt-5 max-h-[560px] space-y-3 overflow-y-auto pr-1">
         {stages.length === 0 ? (
           <EmptyState
             description="No stages yet. Add the first stage for this pipeline group."
@@ -318,9 +333,11 @@ export function PipelineStagesManager({
                 disabled={isSubmitting}
                 id="owner-new-stage-name"
                 name="name"
+                onChange={(event) => setNewStageName(event.target.value)}
                 placeholder="Add stage"
                 required
                 type="text"
+                value={newStageName}
               />
             </div>
             <div>
@@ -372,32 +389,53 @@ export function PipelineStagesManager({
               </label>
               <input
                 className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] outline-none transition focus:border-[var(--workspace-primary,var(--ops-primary))] focus:ring-2 focus:ring-[var(--workspace-primary-glow,var(--ops-primary-glow))]"
-                defaultValue={stages.length}
+                value={newStageOrderIndex}
                 disabled={isSubmitting}
                 id="owner-new-stage-order"
                 min={0}
                 name="order_index"
+                onChange={(event) =>
+                  setNewStageOrderIndex(Number(event.target.value || 0))
+                }
                 type="number"
               />
             </div>
           </div>
 
           <div className="mt-3 flex flex-wrap gap-3 text-sm text-[var(--ops-text-soft)]">
-            {["Closed:is_closed", "Won:is_won", "Lost:is_lost"].map((entry) => {
-              const [label, field] = entry.split(":");
-
-              return (
-                <label className="inline-flex items-center gap-2" key={field}>
-                  <input
-                    className="h-4 w-4 accent-[var(--workspace-primary,var(--ops-primary))]"
-                    disabled={isSubmitting}
-                    name={field}
-                    type="checkbox"
-                  />
-                  {label}
-                </label>
-              );
-            })}
+            <label className="inline-flex items-center gap-2">
+              <input
+                checked={newStageIsClosed}
+                className="h-4 w-4 accent-[var(--workspace-primary,var(--ops-primary))]"
+                disabled={isSubmitting}
+                name="is_closed"
+                onChange={(event) => setNewStageIsClosed(event.target.checked)}
+                type="checkbox"
+              />
+              Closed
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                checked={newStageIsWon}
+                className="h-4 w-4 accent-[var(--workspace-primary,var(--ops-primary))]"
+                disabled={isSubmitting}
+                name="is_won"
+                onChange={(event) => setNewStageIsWon(event.target.checked)}
+                type="checkbox"
+              />
+              Won
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                checked={newStageIsLost}
+                className="h-4 w-4 accent-[var(--workspace-primary,var(--ops-primary))]"
+                disabled={isSubmitting}
+                name="is_lost"
+                onChange={(event) => setNewStageIsLost(event.target.checked)}
+                type="checkbox"
+              />
+              Lost
+            </label>
           </div>
 
           <div className="mt-4 flex justify-end">

@@ -23,6 +23,18 @@ This file replaces earlier React/Vite Codex instructions.
 
 ---
 
+# Current Implementation Snapshot
+
+- Normal app routes include `/dashboard`, `/leads`, `/jobs`, `/tasks`, `/calendar`, `/automations`, `/settings`, and `/pipelines`.
+- Owner Console routes include `/owner`, `/owner/team`, `/owner/invitations`, `/owner/branding`, `/owner/modules`, `/owner/pipeline`, `/owner/access-rules`, and `/owner/audit-logs`.
+- Workspace-wide controls are owner-only and live in Owner Console. Normal Settings is personal/account and role-limited.
+- Personal theme preference is stored in `profiles.theme_mode` and is separate from the workspace default theme.
+- Dashboard Pipeline Overview is preview-only; `/pipelines` is the full working board.
+- Grouped pipelines use `pipeline_groups` and grouped stage uniqueness through `pipeline_stages.pipeline_group_id`.
+- Current icon family is Phosphor Icons.
+
+---
+
 # 1. Source of Truth Files
 
 Codex must follow these files:
@@ -67,6 +79,8 @@ If files conflict, follow this priority:
 - Do not disable RLS to fix errors.
 - Do not hardcode workspace IDs.
 - Do not trust client-supplied user IDs for permissions.
+- Do not accept `workspace_id` from client payloads for normal app writes.
+- Do not trust client-supplied role or entity values when the server can derive them safely.
 
 ## Data Rules
 
@@ -88,6 +102,8 @@ If files conflict, follow this priority:
 - Make mobile responsive.
 - Build reusable components.
 - Avoid unnecessary `use client`.
+- Keep Owner Console separate from normal Settings.
+- Keep workspace branding changes limited to safe accent variables, not structural contrast colors.
 
 ## Development Rules
 
@@ -98,6 +114,7 @@ If files conflict, follow this priority:
 - Explain changed files.
 - Report errors honestly.
 - Ask before changing architecture.
+- Validate permission-sensitive changes in both the UI and server route.
 
 ---
 
@@ -122,25 +139,56 @@ src/
       tasks/page.tsx
       calendar/page.tsx
       automations/page.tsx
+      pipelines/page.tsx
       settings/page.tsx
+    (owner)/
+      owner/
+        layout.tsx
+        page.tsx
+        team/page.tsx
+        invitations/page.tsx
+        branding/page.tsx
+        modules/page.tsx
+        pipeline/page.tsx
+        access-rules/page.tsx
+        audit-logs/page.tsx
     api/
       health/route.ts
-      dashboard/route.ts
       leads/route.ts
+      leads/[leadId]/route.ts
       jobs/route.ts
+      jobs/[jobId]/route.ts
       tasks/route.ts
+      tasks/[taskId]/route.ts
+      appointments/route.ts
+      appointments/[appointmentId]/route.ts
+      pipelines/route.ts
+      pipelines/cards/move/route.ts
+      owner/
+        access-rules/route.ts
+        branding/route.ts
+        branding/upload/route.ts
+        invitations/route.ts
+        invitations/[invitationId]/route.ts
+        members/[memberId]/role/route.ts
+        pipeline-groups/route.ts
+        pipeline-groups/[groupId]/route.ts
+        pipeline-stages/route.ts
+        pipeline-stages/[stageId]/route.ts
       settings/
         branding/route.ts
         modules/route.ts
-      internal/
-        n8n/route.ts
-      stripe/
-        webhook/route.ts
+        pipeline-stages/route.ts
+        pipeline-stages/[stageId]/route.ts
   components/
     app-shell/
     dashboard/
-    forms/
+    jobs/
+    leads/
+    owner/
+    pipelines/
     settings/
+    tasks/
     ui/
   lib/
     supabase/
@@ -206,6 +254,13 @@ Build order:
 005_logs_templates.sql
 006_rls_policies.sql
 007_indexes.sql
+008_owner_console_foundation.sql
+009_invite_acceptance_flow.sql
+010_branding_storage_and_user_theme.sql
+011_fix_profile_theme_preference_rls.sql
+012_workspace_branding_storage.sql
+013_pipeline_groups_and_board.sql
+014_fix_pipeline_stage_group_uniqueness.sql
 ```
 
 MVP tables:
@@ -217,6 +272,7 @@ workspace_members
 workspace_branding
 workspace_modules
 pipeline_stages
+pipeline_groups
 clients
 leads
 jobs
@@ -225,6 +281,8 @@ appointments
 message_templates
 automation_logs
 audit_logs
+workspace_invitations
+workspace_role_permissions
 ```
 
 Naming must match DB Blueprint exactly.
@@ -373,9 +431,9 @@ MobileNav
 UserMenu
 ```
 
-Use `lucide-react` icons.
+Use Phosphor Icons for product UI.
 
-Use Recharts later if needed for charts. If not installed yet, use chart placeholders with empty states.
+Use honest preview states where charts or advanced surfaces are not fully wired yet.
 
 ---
 
@@ -503,11 +561,9 @@ Connect:
 
 Add:
 
-- workspace profile
-- branding
-- modules
-- pipeline placeholder
-- security placeholder
+- personal/account settings
+- personal theme preference
+- role-limited settings visibility
 
 ## Step 12 — Automation Foundation Later
 
@@ -516,6 +572,16 @@ Add:
 - automation logs
 - n8n route placeholder
 - new lead workflow later
+
+---
+
+# 9A. Current Owner Console Direction
+
+- Owner Console is the owner-only workspace control area.
+- Normal Settings remains personal/account and role-limited.
+- Branding, modules, grouped pipelines, access rules, invites, and audit logs belong in Owner Console.
+- Invite roles exclude `owner`.
+- Pipeline board preview lives on the dashboard; `/pipelines` is the full working board.
 
 ---
 
@@ -534,6 +600,7 @@ Supabase:
 ```bash
 supabase db lint
 supabase migration list
+supabase db push --dry-run
 ```
 
 Testing later:
@@ -717,6 +784,19 @@ Codex can:
 8. Add small utilities.
 9. Run build/lint.
 10. Add comments for non-obvious logic.
+
+---
+
+# 15A. Current Special Rules
+
+- Owner Console is owner-only.
+- Role permissions should flow through `workspace_role_permissions` and server-side checks.
+- Personal theme preference is available to authenticated roles through `profiles.theme_mode`.
+- Dashboard Pipeline Overview is preview-only.
+- `/pipelines` is the full working board.
+- Do not use a service role key for normal app writes.
+- Do not add fake leads, jobs, tasks, cards, or pipeline stages.
+- Invitation email sending is deferred.
 
 ---
 

@@ -45,5 +45,20 @@ export const updateTaskStatusSchema = z.object({
   status: taskStatusSchema,
 });
 
+export const updateTaskSchema = z
+  .object({
+    description: optionalText,
+    due_at: optionalDateTime,
+    priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
+    related_id: optionalUuid,
+    related_type: z.enum(["lead", "job", "client", "general"]).optional(),
+    status: taskStatusSchema.optional(),
+    title: z.string().trim().min(1, "Task title is required.").optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "Provide at least one task field to update.",
+  });
+
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type TaskStatusInput = z.infer<typeof taskStatusSchema>;
+export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;

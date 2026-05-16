@@ -1,8 +1,8 @@
 import {
   ChatCircleTextIcon,
-  MagnifyingGlassIcon,
 } from "@phosphor-icons/react/ssr";
-import { Input } from "@/components/ui/Input";
+import { presentAuditActivity, buildAuditActivityLookups } from "@/lib/activity/presentation";
+import { TopbarHeading } from "@/components/app-shell/TopbarHeading";
 import { ThemeModeButton } from "@/components/theme/ThemeModeButton";
 import { SignOutButton } from "@/components/app-shell/SignOutButton";
 import { NotificationButton } from "@/components/app-shell/NotificationButton";
@@ -82,16 +82,37 @@ export async function Topbar({ workspaceContext }: TopbarProps) {
   const supabase = await createClient();
   const { data: notifications } = await supabase
     .from("audit_logs")
-    .select("id,action,created_at")
+    .select("id,action,actor_user_id,entity_id,entity_type,metadata,created_at")
     .eq("workspace_id", workspaceContext.workspace.id)
     .order("created_at", { ascending: false })
-    .limit(3)
-    .returns<Array<{ action: string; created_at: string; id: string }>>();
-  const notificationItems = (notifications ?? []).map((item) => ({
-    id: item.id,
-    message: item.action.replaceAll("_", " "),
-    timestamp: item.created_at,
-  }));
+    .limit(20)
+    .returns<
+      Array<{
+        action: string;
+        actor_user_id: string | null;
+        created_at: string;
+        entity_id: string | null;
+        entity_type: string;
+        id: string;
+        metadata: Record<string, unknown> | null;
+      }>
+    >();
+  const notificationLookups = await buildAuditActivityLookups(
+    supabase,
+    notifications ?? [],
+  );
+  const notificationItems = (notifications ?? []).map((item) => {
+    const presentation = presentAuditActivity(item, notificationLookups);
+
+    return {
+      category: presentation.category,
+      detail: presentation.description,
+      id: item.id,
+      icon: presentation.icon,
+      message: presentation.title,
+      timestamp: item.created_at,
+    };
+  });
 
   return (
     <header className="sticky top-0 z-10 border-b border-[var(--ops-border)] bg-[var(--ops-main-bg)]/90 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
@@ -100,26 +121,10 @@ export async function Topbar({ workspaceContext }: TopbarProps) {
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ops-text-muted)]">
             {appName}
           </p>
-          <h1 className="mt-1 text-xl font-semibold text-[var(--ops-text)]">
-            {greeting}, {displayName}
-          </h1>
+          <TopbarHeading displayName={displayName} greeting={greeting} />
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Input
-            id="global-search"
-            icon={
-              <MagnifyingGlassIcon
-                aria-hidden="true"
-                size={20}
-                weight="regular"
-              />
-            }
-            label="Search anything"
-            placeholder="Search anything..."
-            type="search"
-          />
-          <div className="flex items-center gap-2" aria-label="Account tools">
+        <div className="flex items-center gap-2" aria-label="Account tools">
             <button
               aria-label="Messages"
               className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--ops-border)] bg-white text-[var(--ops-text-soft)] shadow-sm transition hover:bg-[var(--ops-card-soft)] hover:text-[var(--ops-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ops-primary)]"
@@ -137,7 +142,6 @@ export async function Topbar({ workspaceContext }: TopbarProps) {
               className="border border-[var(--ops-border)] bg-white text-[var(--ops-text-soft)] hover:bg-[var(--ops-card-soft)] hover:text-[var(--ops-text)]"
               compact
             />
-          </div>
         </div>
       </div>
     </header>

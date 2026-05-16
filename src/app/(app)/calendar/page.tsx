@@ -24,7 +24,7 @@ function getCalendarFilter(value: string | undefined): CalendarFilter {
     return value;
   }
 
-  return "upcoming";
+  return "today";
 }
 
 function getDateKey(value: string, timezone: string) {

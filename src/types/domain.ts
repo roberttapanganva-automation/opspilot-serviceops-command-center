@@ -67,6 +67,41 @@ export type WorkspaceModuleSettings = WorkspaceModules;
 
 export type PipelineEntityType = "lead" | "job";
 
+export type Client = {
+  address: string | null;
+  company_name: string | null;
+  created_at: string;
+  created_by: string | null;
+  email: string | null;
+  id: string;
+  name: string;
+  notes: string | null;
+  phone: string | null;
+  source: string | null;
+  updated_at: string;
+  updated_by: string | null;
+  workspace_id: string;
+};
+
+export type ClientSummary = Pick<
+  Client,
+  "company_name" | "email" | "id" | "name" | "phone" | "source"
+>;
+
+export type ClientListItem = Client & {
+  completed_job_count: number;
+  last_activity_at: string | null;
+  latest_lead_activity_at: string | null;
+  latest_completed_job_at: string | null;
+  linked_lead_count: number;
+  relationship_label: "Customer" | "Repeat customer" | "Saved contact";
+};
+
+export type LeadWithClient = {
+  client: ClientSummary | null;
+  client_id: string | null;
+};
+
 export type PipelineGroup = {
   created_at: string;
   created_by: string | null;
@@ -110,6 +145,7 @@ export type PipelineBoardCard = {
   priority: "low" | "normal" | "high" | "urgent" | null;
   scheduled_start: string | null;
   service_type: string | null;
+  source: string | null;
   stage_id: string | null;
   status: string;
   title: string;
@@ -122,6 +158,7 @@ export type PipelineBoardStage = PipelineStage & {
 };
 
 export type PipelineBoard = {
+  can_create_leads: boolean;
   can_move_cards: boolean;
   entity_type: PipelineEntityType | null;
   groups: PipelineGroup[];
@@ -331,6 +368,7 @@ export type DashboardRevenueSummary = {
 export type DashboardActivityItem = {
   created_at: string;
   id: string;
+  icon: string;
   message: string;
   status: string | null;
   title: string;

@@ -6,12 +6,16 @@ import {
 } from "@/lib/permissions/workspace";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/tenant/getActiveWorkspace";
-import { updateTaskStatusSchema } from "@/lib/validation/tasks";
+import { updateTaskSchema } from "@/lib/validation/tasks";
 import type { ApiResponse } from "@/types/api";
 
 type TaskResponse = {
   completed_at: string | null;
+  description?: string | null;
+  due_at?: string | null;
   id: string;
+  priority?: "low" | "normal" | "high" | "urgent";
+  related_type?: "lead" | "job" | "client" | "general";
   status: "todo" | "in_progress" | "done" | "cancelled";
   title: string;
 };
@@ -107,20 +111,63 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   try {
-    const payload = updateTaskStatusSchema.parse(await request.json());
-    const completedAt =
-      payload.status === "done" ? new Date().toISOString() : null;
+    const rawPayload = (await request.json()) as Record<string, unknown>;
+    const payload = updateTaskSchema.parse(rawPayload);
+    const isStatusOnlyUpdate =
+      Object.keys(rawPayload).length === 1 && "status" in rawPayload;
+
+    if (
+      !isStatusOnlyUpdate &&
+      !canDeleteOperationalRecords(activeWorkspace.context.role)
+    ) {
+      return jsonResponse(
+        {
+          error: {
+            code: "TASK_EDIT_FORBIDDEN",
+            message: "Your workspace role cannot edit task details.",
+          },
+          ok: false,
+        },
+        403,
+      );
+    }
+
+    const updates: Record<string, unknown> = {
+      updated_by: user.id,
+    };
+
+    if ("status" in rawPayload && payload.status) {
+      updates.status = payload.status;
+      updates.completed_at =
+        payload.status === "done" ? new Date().toISOString() : null;
+    }
+
+    if ("title" in rawPayload && payload.title) {
+      updates.title = payload.title;
+    }
+
+    if ("description" in rawPayload) {
+      updates.description = payload.description ?? null;
+    }
+
+    if ("due_at" in rawPayload) {
+      updates.due_at = payload.due_at ?? null;
+    }
+
+    if ("priority" in rawPayload && payload.priority) {
+      updates.priority = payload.priority;
+    }
+
+    if ("related_type" in rawPayload && payload.related_type) {
+      updates.related_type = payload.related_type;
+    }
 
     const { data: task, error: taskError } = await supabase
       .from("tasks")
-      .update({
-        completed_at: completedAt,
-        status: payload.status,
-        updated_by: user.id,
-      })
+      .update(updates)
       .eq("id", taskIdResult.data)
       .eq("workspace_id", activeWorkspace.context.workspace.id)
-      .select("id,title,status,completed_at")
+      .select("id,title,description,due_at,priority,status,related_type,completed_at")
       .single<TaskResponse>();
 
     if (taskError) {
@@ -159,7 +206,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         {
           error: {
             code: "VALIDATION_ERROR",
-            message: "Choose a valid task status.",
+            message: "Check the task details and try again.",
             details: error.flatten().fieldErrors,
           },
           ok: false,

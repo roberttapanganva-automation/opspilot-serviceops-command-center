@@ -69,4 +69,18 @@ export const createJobSchema = z.object({
   title: z.string().trim().min(1, "Job title is required."),
 });
 
+export const updateJobSchema = z.object({
+  estimated_value: optionalNumber.default(0),
+  location: optionalText,
+  payment_status: z
+    .enum(["unpaid", "partial", "paid", "refunded", "not_applicable"])
+    .default("unpaid"),
+  service_type: optionalText,
+  status: z
+    .enum(["draft", "scheduled", "in_progress", "completed", "cancelled"])
+    .default("scheduled"),
+  title: z.string().trim().min(1, "Job title is required."),
+});
+
 export type CreateJobInput = z.infer<typeof createJobSchema>;
+export type UpdateJobInput = z.infer<typeof updateJobSchema>;

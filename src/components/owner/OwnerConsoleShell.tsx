@@ -55,7 +55,6 @@ export function OwnerConsoleShell({
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/70">
             Owner Console
           </p>
-          <p className="mt-2 truncate text-sm text-white/50">{appName}</p>
         </div>
 
         <nav className="mt-8 flex flex-1 flex-col gap-1" aria-label="Owner">

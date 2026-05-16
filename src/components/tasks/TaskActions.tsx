@@ -8,12 +8,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import type { ApiResponse } from "@/types/api";
-import type { TaskStatus } from "./TaskStatusBadge";
+import { EditTaskDialog } from "./EditTaskDialog";
+import type { TaskListItem } from "./TasksList";
 
 type TaskActionsProps = {
   canDeleteRecords: boolean;
-  status: TaskStatus;
-  taskId: string;
+  task: TaskListItem;
 };
 
 type UpdatedTask = {
@@ -30,10 +30,10 @@ function getErrorMessage(response: ApiResponse<UpdatedTask>) {
 
 export function TaskActions({
   canDeleteRecords,
-  status,
-  taskId,
+  task,
 }: TaskActionsProps) {
   const router = useRouter();
+  const status = task.status;
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +43,7 @@ export function TaskActions({
     setIsLoading(true);
 
     try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
+      const response = await fetch(`/api/tasks/${task.id}`, {
         body: JSON.stringify({ status: nextStatus }),
         headers: {
           "Content-Type": "application/json",
@@ -75,7 +75,7 @@ export function TaskActions({
     setIsDeleting(true);
 
     try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
+      const response = await fetch(`/api/tasks/${task.id}`, {
         method: "DELETE",
       });
       const result = (await response.json()) as ApiResponse<UpdatedTask>;
@@ -105,8 +105,8 @@ export function TaskActions({
           aria-label={status === "done" ? "Mark task undone" : "Mark task done"}
           className={`h-9 w-9 rounded-lg p-0 ${
             status === "done"
-              ? "text-[var(--ops-primary-dark)] border-[var(--ops-primary)]"
-              : "text-[var(--ops-success)]"
+              ? "border-[var(--ops-success)] bg-[var(--ops-success-soft)] text-[var(--ops-success)]"
+              : "text-[var(--ops-text-soft)]"
           }`}
           disabled={isLoading || isDeleting}
           onClick={() => updateStatus(status === "done" ? "todo" : "done")}
@@ -118,31 +118,60 @@ export function TaskActions({
             aria-hidden="true"
             fill="none"
             height="18"
-            viewBox="0 0 20 20"
+            initial={false}
+            viewBox="0 0 256 256"
             width="18"
           >
-            <rect
-              height="14"
-              rx="3"
+            <motion.rect
+              animate={{
+                fill: status === "done" ? "currentColor" : "transparent",
+                strokeOpacity: status === "done" ? 1 : 0.55,
+              }}
+              height="176"
+              rx="36"
               stroke="currentColor"
-              strokeOpacity="0.45"
-              strokeWidth="1.8"
-              width="14"
-              x="3"
-              y="3"
+              strokeWidth="24"
+              transition={{ duration: 0.22, ease: "easeInOut" }}
+              width="176"
+              x="40"
+              y="40"
             />
             <motion.path
               animate={{
-                pathLength: status === "done" ? 1 : 0,
-                opacity: status === "done" ? 1 : 0.5,
+                opacity: status === "done" ? 0 : 0.9,
+                scaleX: status === "done" ? 0.35 : 1,
               }}
-              d="M4.5 10.5L8.2 14.2L15.5 6.8"
+              d="M72 128H184"
+              initial={false}
               stroke="currentColor"
               strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2.2"
-              transition={{ duration: 0.35, ease: "easeInOut" }}
+              strokeWidth="24"
+              style={{ originX: 0.5, originY: 0.5 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
             />
+            <motion.g
+              animate={{
+                opacity: status === "done" ? 1 : 0,
+                scale: status === "done" ? 1 : 0.72,
+              }}
+              initial={false}
+              style={{ originX: 0.5, originY: 0.5 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+            >
+              <motion.polyline
+                animate={{
+                  pathLength: status === "done" ? 1 : 0,
+                }}
+                initial={false}
+                pathLength={0}
+                points="40 144 96 200 224 72"
+                stroke="white"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="16"
+                transition={{ duration: 0.32, ease: "easeInOut" }}
+              />
+            </motion.g>
           </motion.svg>
           <span className="sr-only">
             {isLoading
@@ -152,10 +181,11 @@ export function TaskActions({
                 : "Mark done"}
           </span>
         </Button>
+        {canDeleteRecords ? <EditTaskDialog task={task} /> : null}
         {canDeleteRecords ? (
           <button
             aria-label="Delete task"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--ops-border)] bg-white text-[var(--ops-danger)] shadow-sm transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ops-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--ops-border)] bg-white text-[var(--ops-danger)] shadow-sm transition hover:border-[var(--ops-danger)] hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ops-primary)] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isLoading || isDeleting}
             onClick={deleteTask}
             title="Delete task"

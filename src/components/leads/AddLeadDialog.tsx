@@ -2,13 +2,18 @@
 
 import { XIcon, PlusIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
+import type { LeadPipelineStageOption } from "@/lib/pipelines/queries";
 import type { ApiResponse } from "@/types/api";
+import type { Client } from "@/types/domain";
+import { ContactSelect } from "./ContactSelect";
 
 type AddLeadDialogProps = {
   className?: string;
+  clients?: Client[];
+  stageOptions?: LeadPipelineStageOption[];
   variant?: "primary" | "secondary" | "ghost";
 };
 
@@ -26,6 +31,8 @@ function getErrorMessage(response: ApiResponse<CreatedLead>) {
 
 export function AddLeadDialog({
   className = "",
+  clients = [],
+  stageOptions = [],
   variant = "primary",
 }: AddLeadDialogProps) {
   const router = useRouter();
@@ -33,8 +40,13 @@ export function AddLeadDialog({
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState("");
   const [nextFollowUpDate, setNextFollowUpDate] = useState<Date | undefined>(
     undefined,
+  );
+  const selectedClient = useMemo(
+    () => clients.find((client) => client.id === selectedClientId) ?? null,
+    [clients, selectedClientId],
   );
 
   function closeDialog() {
@@ -44,6 +56,7 @@ export function AddLeadDialog({
 
     setError(null);
     setNextFollowUpDate(undefined);
+    setSelectedClientId("");
     setIsOpen(false);
   }
 
@@ -58,12 +71,14 @@ export function AddLeadDialog({
       : "";
     const nextFollowUpTime = String(formData.get("next_follow_up_time") ?? "");
     const estimatedValue = String(formData.get("estimated_value") ?? "");
+    const stageId = String(formData.get("stage_id") ?? "");
     const nextFollowUp =
       nextFollowUpDateValue && nextFollowUpTime
         ? `${nextFollowUpDateValue}T${nextFollowUpTime}`
         : "";
 
     const payload = {
+      client_id: selectedClientId || undefined,
       client_email: String(formData.get("client_email") ?? ""),
       client_name: String(formData.get("client_name") ?? ""),
       client_phone: String(formData.get("client_phone") ?? ""),
@@ -74,6 +89,7 @@ export function AddLeadDialog({
       notes: String(formData.get("notes") ?? ""),
       priority: String(formData.get("priority") ?? "normal"),
       source: String(formData.get("source") ?? ""),
+      stage_id: stageId || undefined,
       status: "open",
       title: String(formData.get("title") ?? ""),
     };
@@ -96,6 +112,7 @@ export function AddLeadDialog({
 
       formRef.current?.reset();
       setNextFollowUpDate(undefined);
+      setSelectedClientId("");
       setIsOpen(false);
       router.refresh();
     } catch (caughtError) {
@@ -180,58 +197,119 @@ export function AddLeadDialog({
                 />
               </div>
 
+              {stageOptions.length > 0 ? (
+                <div>
+                  <label
+                    className="text-sm font-medium text-[var(--ops-text)]"
+                    htmlFor="lead-stage-id"
+                  >
+                    Pipeline stage
+                  </label>
+                  <select
+                    className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition focus:border-[var(--workspace-primary,var(--ops-primary))] focus:ring-2 focus:ring-[var(--workspace-primary-glow,var(--ops-primary-glow))]"
+                    disabled={isSubmitting}
+                    id="lead-stage-id"
+                    name="stage_id"
+                    defaultValue=""
+                  >
+                    <option value="">No stage selected</option>
+                    {stageOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.groupName} - {option.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+
+              <div className="space-y-5 rounded-xl border border-[var(--ops-border)] bg-[var(--ops-card-soft)] p-4">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--ops-text)]">
+                    Contact
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--ops-text-soft)]">
+                    Link an existing contact or add quick contact details for a new one.
+                  </p>
+                </div>
+
+                <ContactSelect
+                  clients={clients}
+                  disabled={isSubmitting}
+                  onSelectedClientIdChange={setSelectedClientId}
+                  selectedClientId={selectedClientId}
+                />
+
+                {selectedClient ? (
+                  <div className="rounded-lg border border-[var(--ops-border)] bg-white p-3 text-sm text-[var(--ops-text-soft)]">
+                    <p className="font-medium text-[var(--ops-text)]">
+                      {selectedClient.name}
+                    </p>
+                    <p className="mt-1">
+                      {selectedClient.email ?? selectedClient.phone ?? "No email or phone on file"}
+                    </p>
+                    {selectedClient.company_name ? (
+                      <p className="mt-1 text-xs text-[var(--ops-text-muted)]">
+                        {selectedClient.company_name}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label
+                      className="text-sm font-medium text-[var(--ops-text)]"
+                      htmlFor="lead-client-name"
+                    >
+                      Contact name
+                    </label>
+                    <input
+                      className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition placeholder:text-[var(--ops-text-muted)] focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+                      disabled={isSubmitting || Boolean(selectedClient)}
+                      id="lead-client-name"
+                      name="client_name"
+                      placeholder="Client name"
+                      type="text"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      className="text-sm font-medium text-[var(--ops-text)]"
+                      htmlFor="lead-client-email"
+                    >
+                      Email
+                    </label>
+                    <input
+                      className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition placeholder:text-[var(--ops-text-muted)] focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+                      disabled={isSubmitting || Boolean(selectedClient)}
+                      id="lead-client-email"
+                      name="client_email"
+                      placeholder="client@example.com"
+                      type="email"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      className="text-sm font-medium text-[var(--ops-text)]"
+                      htmlFor="lead-client-phone"
+                    >
+                      Phone
+                    </label>
+                    <input
+                      className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition placeholder:text-[var(--ops-text-muted)] focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
+                      disabled={isSubmitting || Boolean(selectedClient)}
+                      id="lead-client-phone"
+                      name="client_phone"
+                      placeholder="Phone number"
+                      type="tel"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label
-                    className="text-sm font-medium text-[var(--ops-text)]"
-                    htmlFor="lead-client-name"
-                  >
-                    Contact name
-                  </label>
-                  <input
-                    className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition placeholder:text-[var(--ops-text-muted)] focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-                    disabled={isSubmitting}
-                    id="lead-client-name"
-                    name="client_name"
-                    placeholder="Client name"
-                    type="text"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    className="text-sm font-medium text-[var(--ops-text)]"
-                    htmlFor="lead-client-email"
-                  >
-                    Email
-                  </label>
-                  <input
-                    className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition placeholder:text-[var(--ops-text-muted)] focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-                    disabled={isSubmitting}
-                    id="lead-client-email"
-                    name="client_email"
-                    placeholder="client@example.com"
-                    type="email"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    className="text-sm font-medium text-[var(--ops-text)]"
-                    htmlFor="lead-client-phone"
-                  >
-                    Phone
-                  </label>
-                  <input
-                    className="mt-2 h-10 w-full rounded-lg border border-[var(--ops-border)] bg-white px-3 text-sm text-[var(--ops-text)] shadow-sm outline-none transition placeholder:text-[var(--ops-text-muted)] focus:border-[var(--ops-primary)] focus:ring-2 focus:ring-[var(--ops-primary-glow)]"
-                    disabled={isSubmitting}
-                    id="lead-client-phone"
-                    name="client_phone"
-                    placeholder="Phone number"
-                    type="tel"
-                  />
-                </div>
-
                 <div>
                   <label
                     className="text-sm font-medium text-[var(--ops-text)]"

@@ -185,14 +185,14 @@ export function AddTaskDialog({
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div>
+                <div className="sm:col-span-2">
                   <label
                     className="text-sm font-medium text-[var(--ops-text)]"
                     htmlFor="task-due-at-time"
                   >
                     Due date/time
                   </label>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px]">
+                  <div className="mt-2 grid gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
                     <DatePicker
                       aria-label="Task due date"
                       clearable
